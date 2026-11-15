@@ -1,15 +1,8 @@
 #!/bin/bash
-# =============================================================================
-# TokenRouter Docker Deployment Preparation Script
-# =============================================================================
-# This script prepares deployment files for TokenRouter:
-#   - Downloads docker-compose.local.yml and .env.example
-#   - Generates secure secrets (JWT_SECRET, TOTP_ENCRYPTION_KEY, POSTGRES_PASSWORD)
-#   - Creates necessary data directories
-#
-# After running this script, you can start services with:
-#   docker-compose up -d
-# =============================================================================
+# docker-deploy.sh prepares a Compose deployment from this distribution's
+# repository. It downloads the application configuration and environment template,
+# generates deployment secrets, and creates data directories before the operator
+# starts services with docker compose up -d.
 
 set -e
 
@@ -20,8 +13,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# GitHub raw content base URL
-GITHUB_RAW_URL="https://raw.githubusercontent.com/TokenFlux/TokenRouter/main/deploy"
+# Download both deployment templates from the same distribution that publishes the application image.
+GITHUB_RAW_URL="https://raw.githubusercontent.com/kiroo92/TokenRouter-plugin-data/main/deploy"
 
 # Print colored message
 print_info() {

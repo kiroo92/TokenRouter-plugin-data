@@ -3,7 +3,7 @@
 TokenRouter publishes multi-architecture images to GitHub Container Registry:
 
 ```text
-ghcr.io/tokenflux/tokenrouter:latest
+ghcr.io/kiroo92/tokenrouter-plugin-data:latest
 ```
 
 The application requires PostgreSQL and Redis. Docker Compose provides installation inputs, persistent configuration storage, health checks, and dependency startup ordering.
@@ -17,9 +17,9 @@ Choose a configuration for your deployment topology:
 | [docker-compose.local.yml](docker-compose.local.yml) | TokenRouter, PostgreSQL, Redis | Local directories | Production deployments using bind mounts for backups and migration. |
 | [docker-compose.yml](docker-compose.yml) | TokenRouter, PostgreSQL, Redis | Docker named volumes | Production deployments using Docker volume management. |
 | [docker-compose.standalone.yml](docker-compose.standalone.yml) | TokenRouter only | Docker named volumes | Environments with external PostgreSQL and Redis. |
-| [docker-compose.dev.yml](https://github.com/TokenFlux/TokenRouter/blob/main/deploy/docker-compose.dev.yml) | Locally built TokenRouter, PostgreSQL, Redis | Local directories | Development and source testing; requires a full source checkout. |
+| [docker-compose.dev.yml](https://github.com/kiroo92/TokenRouter-plugin-data/blob/main/deploy/docker-compose.dev.yml) | Locally built TokenRouter, PostgreSQL, Redis | Local directories | Development and source testing; requires a full source checkout. |
 
-See the [deployment guide](https://github.com/TokenFlux/TokenRouter/blob/main/docs/guides/deployment/index.md) for complete steps and [.env.example](.env.example) for environment variables.
+See the [deployment guide](https://github.com/kiroo92/TokenRouter-plugin-data/blob/main/docs/guides/deployment/index.md) for complete steps and [.env.example](.env.example) for environment variables.
 
 ## Standalone containers
 
@@ -57,8 +57,8 @@ Pin a version tag or image digest in production, and verify database backups bef
 
 ## Related links
 
-- [GitHub repository](https://github.com/TokenFlux/TokenRouter)
-- [Deployment guide](https://github.com/TokenFlux/TokenRouter/blob/main/docs/guides/deployment/index.md)
+- [GitHub repository](https://github.com/kiroo92/TokenRouter-plugin-data)
+- [Deployment guide](https://github.com/kiroo92/TokenRouter-plugin-data/blob/main/docs/guides/deployment/index.md)
 
 ## Versioned application configuration
 
@@ -102,7 +102,7 @@ docker compose run --rm --no-deps tokenrouter /app/tokenrouter \
 Replace the mounted file with the output, then restart. To roll back the binary,
 stop the new process and restore the original v1 configuration and deployment
 environment first; old binaries do not understand v2 names or references. See the
-[configuration upgrade notes](https://github.com/TokenFlux/TokenRouter/blob/main/docs/operations/upgrade_notes.md#config_version_2).
+[configuration upgrade notes](https://github.com/kiroo92/TokenRouter-plugin-data/blob/main/docs/operations/upgrade_notes.md#config_version_2).
 
 New installations use the code defaults for database pools, Redis idle connections,
 and the OpenAI compact-model override. Existing values are imported during the

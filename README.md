@@ -1,12 +1,14 @@
+Personal builds of [TokenFlux/TokenRouter](https://github.com/TokenFlux/TokenRouter) with persistent plugin data and offline backups. Releases and images are maintained by `kiroo92`; this is an independent distribution. [Downloads](https://github.com/kiroo92/TokenRouter-plugin-data/releases) · Image: `ghcr.io/kiroo92/tokenrouter-plugin-data`.
+
 <div align="center">
   <p>
     <img src="assets/readme/banner.svg" width="100%" alt="TokenRouter, an open source LLM gateway. Messages, Responses, Chat Completions, and Gemini requests enter one endpoint and are routed to upstream platforms such as Anthropic, OpenAI, and Gemini, with failover when an upstream returns an error." />
   </p>
 
   <p>
-    <a href="https://github.com/TokenFlux/TokenRouter/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/TokenFlux/TokenRouter/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white&labelColor=27272A" alt="CI" /></a>
-    <a href="https://github.com/TokenFlux/TokenRouter/releases"><img src="https://img.shields.io/github/v/release/TokenFlux/TokenRouter?display_name=tag&style=flat-square&label=release&labelColor=27272A&color=3F3F46" alt="Release" /></a>
-    <a href="https://github.com/TokenFlux/TokenRouter/pkgs/container/tokenrouter"><img src="https://img.shields.io/badge/container-ghcr.io-3F3F46?style=flat-square&logo=docker&logoColor=white&labelColor=27272A" alt="Container: ghcr.io/tokenflux/tokenrouter" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/kiroo92/TokenRouter-plugin-data/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white&labelColor=27272A" alt="CI" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/releases"><img src="https://img.shields.io/github/v/release/kiroo92/TokenRouter-plugin-data?display_name=tag&style=flat-square&label=release&labelColor=27272A&color=3F3F46" alt="Release" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/pkgs/container/tokenrouter-plugin-data"><img src="https://img.shields.io/badge/container-ghcr.io-3F3F46?style=flat-square&logo=docker&logoColor=white&labelColor=27272A" alt="Container: ghcr.io/kiroo92/tokenrouter-plugin-data" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0--or--later-3F3F46?style=flat-square&labelColor=27272A" alt="License: LGPL-3.0-or-later" /></a>
     <a href="https://discord.com/invite/7XZzukhX4E"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white&labelColor=27272A" alt="Discord" /></a>
   </p>
@@ -96,7 +98,7 @@ Deploy with Docker Compose:
 mkdir -p tokenrouter-deploy && cd tokenrouter-deploy
 
 # Download the Compose file and .env, and generate the database password and secrets
-curl -sSL https://raw.githubusercontent.com/TokenFlux/TokenRouter/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/kiroo92/TokenRouter-plugin-data/main/deploy/docker-deploy.sh | bash
 
 docker compose up -d
 ```

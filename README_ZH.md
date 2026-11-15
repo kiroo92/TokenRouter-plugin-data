@@ -1,12 +1,14 @@
+这是 `kiroo92` 维护的 [TokenFlux/TokenRouter](https://github.com/TokenFlux/TokenRouter) 独立分发版本，包含插件持久数据目录和离线备份功能。[下载版本](https://github.com/kiroo92/TokenRouter-plugin-data/releases)；镜像：`ghcr.io/kiroo92/tokenrouter-plugin-data`。
+
 <div align="center">
   <p>
     <img src="assets/readme/banner-zh.svg" width="100%" alt="TokenRouter，开源的大模型统一网关。Messages、Responses、Chat Completions 和 Gemini 请求从同一个入口进入，转发到 Anthropic、OpenAI、Gemini 等上游平台，上游出错时自动切换。" />
   </p>
 
   <p>
-    <a href="https://github.com/TokenFlux/TokenRouter/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/TokenFlux/TokenRouter/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white&labelColor=27272A" alt="CI" /></a>
-    <a href="https://github.com/TokenFlux/TokenRouter/releases"><img src="https://img.shields.io/github/v/release/TokenFlux/TokenRouter?display_name=tag&style=flat-square&label=release&labelColor=27272A&color=3F3F46" alt="Release" /></a>
-    <a href="https://github.com/TokenFlux/TokenRouter/pkgs/container/tokenrouter"><img src="https://img.shields.io/badge/container-ghcr.io-3F3F46?style=flat-square&logo=docker&logoColor=white&labelColor=27272A" alt="Container: ghcr.io/tokenflux/tokenrouter" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/kiroo92/TokenRouter-plugin-data/ci.yml?branch=main&style=flat-square&label=CI&logo=githubactions&logoColor=white&labelColor=27272A" alt="CI" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/releases"><img src="https://img.shields.io/github/v/release/kiroo92/TokenRouter-plugin-data?display_name=tag&style=flat-square&label=release&labelColor=27272A&color=3F3F46" alt="Release" /></a>
+    <a href="https://github.com/kiroo92/TokenRouter-plugin-data/pkgs/container/tokenrouter-plugin-data"><img src="https://img.shields.io/badge/container-ghcr.io-3F3F46?style=flat-square&logo=docker&logoColor=white&labelColor=27272A" alt="Container: ghcr.io/kiroo92/tokenrouter-plugin-data" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-LGPL--3.0--or--later-3F3F46?style=flat-square&labelColor=27272A" alt="License: LGPL-3.0-or-later" /></a>
     <a href="https://discord.com/invite/7XZzukhX4E"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white&labelColor=27272A" alt="Discord" /></a>
   </p>
@@ -96,7 +98,7 @@ Go 和 Web SDK 使用 MIT 许可证，支持后端进程和 Vue 页面开发。�
 mkdir -p tokenrouter-deploy && cd tokenrouter-deploy
 
 # 下载 Compose 文件和 .env，并生成数据库密码和密钥
-curl -sSL https://raw.githubusercontent.com/TokenFlux/TokenRouter/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/kiroo92/TokenRouter-plugin-data/main/deploy/docker-deploy.sh | bash
 
 docker compose up -d
 ```

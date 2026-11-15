@@ -30,10 +30,10 @@ import (
 // Release queries share one repository target, a cached-response lifetime in
 // seconds, and fixed fetch/result limits for selecting rollback candidates.
 const (
-	updateCacheTTL        = 1200                    // cached release lifetime in seconds
-	githubRepo            = "TokenFlux/TokenRouter" // queried GitHub owner/repository identity
-	maxRollbackVersions   = 3                       // maximum displayed rollback candidate count
-	rollbackFetchPageSize = 15                      // requested recent release page count
+	updateCacheTTL        = 1200                              // cached release lifetime in seconds
+	githubRepo            = "kiroo92/TokenRouter-plugin-data" // queried GitHub owner/repository identity
+	maxRollbackVersions   = 3                                 // maximum displayed rollback candidate count
+	rollbackFetchPageSize = 15                                // requested recent release page count
 )
 
 // ReleaseQueryClient supplies latest and recent GitHub release records for

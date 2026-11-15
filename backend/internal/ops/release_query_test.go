@@ -152,7 +152,7 @@ func TestReleaseQueryFetchLatestReleasePreservesChangelog(t *testing.T) {
 				BuildType: "source",
 			}, info)
 			require.Equal(t, 1, client.latestCalls)
-			require.Equal(t, "TokenFlux/TokenRouter", client.latestRepo)
+			require.Equal(t, "kiroo92/TokenRouter-plugin-data", client.latestRepo)
 		})
 	}
 }

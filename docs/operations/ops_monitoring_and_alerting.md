@@ -62,6 +62,8 @@ Ops 的构造和启动分开，app 在完成全部绑定后，才启动采样、
 <a id="ops_release_and_maintenance"></a>
 ## 发布查询与维护命令
 
+本独立分发版本从 `kiroo92/TokenRouter-plugin-data` 查询更新和回退版本，与安装器使用同一仓库。
+
 发布查询由 Ops 的 ReleaseQuery 和 GitHub provider 提供，负责版本比较、回退候选的过滤，结果缓存二十分钟；GitHub Token 的可信范围和重定向规则见[部署指南](../guides/deployment/index.md#升级)。下载校验和二进制替换由 Ops 的技术适配层执行；`ops/maintenance` 负责更新和回退、系统操作锁和重启请求的编排。实际的进程退出，由 `app/lifecycle`（只有一处）执行。
 
 `GET /api/v1/admin/system/check-updates` 返回当前版本、最新目标版本、更新标志和构建类型。`release_info` 包含该目标版本的发布名称、`body`、`published_at`、`html_url` 和下载资源；`body` 是 GitHub Release 的完整 Markdown，英文正文、中文 `<details>/<summary>` 折叠区、代码块和换行均原样保留，空正文仍返回空字符串。后端不按语言拆分正文，也不生成摘要或渲染 HTML。

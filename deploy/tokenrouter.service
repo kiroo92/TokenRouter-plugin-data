@@ -1,6 +1,6 @@
 [Unit]
 Description=TokenRouter - AI API Gateway Platform
-Documentation=https://github.com/TokenFlux/TokenRouter
+Documentation=https://github.com/kiroo92/TokenRouter-plugin-data
 After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
