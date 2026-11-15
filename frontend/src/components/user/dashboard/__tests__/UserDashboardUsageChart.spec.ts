@@ -14,7 +14,8 @@ import { formatDayKey } from '../usageChartData'
 // UserDashboardUsageChart.spec.ts mounts the production usage toolbar, chart, and model
 // ranking inside a shared dashboard-state provider. API responses and chart drawing are
 // controlled while selection, filtering, persistence, metric formatting, and emitted refresh
-// actions run through the actual components.
+// actions run through the actual components. A fixed local midday keeps incomplete-hour
+// line assertions independent of the wall-clock hour when the suite runs.
 
 // The chart stub accepts the produced data and options so assertions inspect configuration passed by the actual component.
 vi.mock('vue-chartjs', () => ({
@@ -143,6 +144,9 @@ const mountChart = async () => {
 
 describe('UserDashboardUsageChart', () => {
   beforeEach(() => {
+    // Keep several hourly buckets before the live point; shortly after midnight
+    // only one bucket exists, so the chart correctly has no segment to dash.
+    vi.setSystemTime(new Date(2026, 0, 15, 12))
     localStorage.clear()
     vi.mocked(usageAPI.getDashboardTrend).mockReset()
     vi.mocked(usageAPI.getDashboardModels).mockReset()
@@ -154,6 +158,9 @@ describe('UserDashboardUsageChart', () => {
   })
 
   afterEach(() => {
+    // Restore the real clock after each scenario so other suites cannot inherit
+    // this dashboard fixture's date when the worker continues with another file.
+    vi.useRealTimers()
     localStorage.clear()
   })
 
