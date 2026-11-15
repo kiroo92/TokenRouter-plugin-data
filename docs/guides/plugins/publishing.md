@@ -10,6 +10,8 @@
 
 Go SDK 使用 `plugin-sdk/go/v<version>` 模块标签。Web SDK 独立发布到 `@tokenflux/tokenrouter-plugin-sdk`，新发布版本使用 `plugin-sdk/web/v<version>` 标签记录来源；已有 0.1.0 使用 npm 的 gitHead 追溯。依赖锁文件和 SDK 版本应随插件源码提交。
 
+本分发的 Go SDK v0.3.0 使用同样的子目录标签，发布位置为 `kiroo92/TokenRouter-plugin-data`。它保留上游模块路径，独立插件通过版本化 replace 引用；模板的打包命令也必须使用该依赖，详见 [SDK 接入说明](../../../plugin-sdk/go/README.md#use-the-published-module)。本分发不向 TokenFlux 的 Go SDK 或 npm 命名空间发布包。
+
 发布 TokenRouter 时，`tr-release` 分别对比两个 SDK 最近已发布版本的源码，先发布存在有效变化的 SDK，再发布网关。两个 SDK 保持独立的 `0.x.y`：兼容修复递增 y，新增能力或不兼容变化递增 x 并清零 y。纯测试、格式和开发文档变化不单独触发发布；发布判断必须说明每个变化的影响。完整流程见[发布工作流](../../operations/development_workflow.md#发布)。宿主版本和插件 API 版本继续决定运行兼容性，SDK 发版不会自动改变它们，也不会自动升级独立插件的依赖。
 
 ## 提交索引登记

@@ -4,7 +4,9 @@
 
 ## 准备依赖
 
-工具链以模板仓库的版本文件为准。TokenRouter v0.6.0 对应 Go SDK v0.1.1 与 `@tokenflux/tokenrouter-plugin-sdk@0.2.0`，模板仓库的依赖版本独立维护。源码联调可以在临时副本中使用 Go replace 与本地 Web SDK 链接，发布前恢复正式依赖并生成锁文件。
+工具链以模板仓库的版本文件为准，模板仓库的依赖版本独立维护。官方 Go SDK 当前为 v0.2.1，Web SDK 为 `@tokenflux/tokenrouter-plugin-sdk@0.3.0`。源码联调可以在临时副本中使用本地 Go replace 与 Web SDK 链接，发布前恢复已发布依赖并生成锁文件。
+
+使用本分发的持久目录时，按 [Go SDK 接入说明](../../../plugin-sdk/go/README.md#use-the-published-module)将模块替换为 `kiroo92/TokenRouter-plugin-data` 发布的 v0.3.0，并修改模板的 `TRPLUGIN` 命令，使打包工具也使用同一依赖。将 manifest 的 `minHostVersion` 设为 `0.7.3`，在 Init 中检查 `env.DataDir` 非空；官方模板原有的 SDK 依赖不含此字段。Web SDK 无需随之换包。
 
 从 Web SDK 0.1.0 升级时，检查定义了本地 keyframes 的样式：动画名称必须是可静态确定的字面量。使用 `animation-name: fade; animation-duration: var(--duration)` 可以保留动态时长；由变量决定名称的写法会使构建失败。
 
@@ -32,4 +34,4 @@ make pack
 
 打包会构建五个平台，验证 manifest、引用资源和归档结构，并产生 `plugin.json`、`checksums.txt` 和 `.tar.gz`。在宿主“插件”页上传当前平台归档，审阅权限并安装。缺少必填配置时安装保持禁用，配置完成后再启用。
 
-业务记录放在宿主 KV；`StateDir` 只保存可丢弃缓存。前端资源公开可读，不得包含密钥。安装目录不可写入运行时数据，版本更新可能删除旧目录。
+签到示例将业务记录放在宿主 KV；需要本地数据库或文件的插件使用 `DataDir`，具体规则见[本地持久存储](sdk_reference.md#本地持久存储)。`StateDir` 只保存可丢弃缓存。前端资源公开可读，不得包含密钥。安装目录不可写入运行时数据，版本更新可能删除旧目录。

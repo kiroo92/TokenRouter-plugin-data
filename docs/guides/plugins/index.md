@@ -13,10 +13,14 @@
 
 | 资源 | 地址 |
 | --- | --- |
-| Go SDK v0.1.0 | [模块版本与说明](https://github.com/TokenFlux/TokenRouter/releases/tag/plugin-sdk/go/v0.1.0) |
-| Web SDK 0.1.0 | [@tokenflux/tokenrouter-plugin-sdk](https://www.npmjs.com/package/@tokenflux/tokenrouter-plugin-sdk) |
+| Go SDK v0.2.1 | [模块版本与说明](https://github.com/TokenFlux/TokenRouter/releases/tag/plugin-sdk/go/v0.2.1) |
+| Web SDK 0.3.0 | [@tokenflux/tokenrouter-plugin-sdk](https://www.npmjs.com/package/@tokenflux/tokenrouter-plugin-sdk) |
 | 插件模板 | [TokenFlux/tokenrouter-plugin-template](https://github.com/TokenFlux/tokenrouter-plugin-template) |
 | 每日签到插件 | [TokenFlux/tr-plugin-checkin](https://github.com/TokenFlux/tr-plugin-checkin) |
 | 签名索引与登记 | [TokenFlux/tokenrouter-plugins](https://github.com/TokenFlux/tokenrouter-plugins) |
 
 SDK 与宿主分开发布。签到示例要求宿主至少为 0.6.0；SDK 发布本身不会升级或部署宿主。
+
+## 本分发的持久目录 SDK
+
+`kiroo92/TokenRouter-plugin-data` 的 Go SDK v0.3.0 提供 `Env.DataDir` 和支持本地文件的测试宿主，与本分发宿主 v0.7.3 配套使用。插件通过版本化 Go replace 引用此模块，命令见 [Go SDK 接入说明](../../../plugin-sdk/go/README.md)。这项后端能力不需要改动 Web SDK。
