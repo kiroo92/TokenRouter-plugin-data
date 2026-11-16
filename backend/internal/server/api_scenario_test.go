@@ -240,7 +240,8 @@ type contractRedeemUsers struct {
 // settings, and bulk-provider fixture routes. Exact decoded JSON and status
 // comparisons protect public field selection, administrator fields,
 // configured-state defaults, and represented mutation responses across the
-// production handlers.
+// production handlers. Administrator settings cover both saved user-ID
+// visibility and the disabled default when that setting is absent.
 func TestAPIContracts(t *testing.T) {
 	tests := []struct {
 		name string // response scenario label
@@ -1094,11 +1095,15 @@ func TestAPIContracts(t *testing.T) {
 				// Seed an explicit reporting opt-out and enabled diagnostics alongside
 				// a private identity. Exact response comparison must expose only the four controls.
 				deps.settingRepo.SetAll(map[string]string{
-					"bstats_enabled":                                    "false",
-					"bstats_log_errors":                                 "true",
-					"bstats_log_sent_data":                              "true",
-					"bstats_log_response_status_text":                   "true",
-					"bstats_server_uuid":                                "fe5233bb-2ed6-4a60-99da-45b42c6c29ec",
+					"bstats_enabled":                  "false",
+					"bstats_log_errors":               "true",
+					"bstats_log_sent_data":            "true",
+					"bstats_log_response_status_text": "true",
+					"bstats_server_uuid":              "fe5233bb-2ed6-4a60-99da-45b42c6c29ec",
+					// Persist an enabled display switch so the administrator read
+					// proves saved visibility survives response mapping alongside
+					// independent site and authentication settings.
+					site.SettingKeyShowUserID:                           "true",
 					identity.SettingKeyRegistrationEnabled:              "true",
 					identity.SettingKeyEmailVerifyEnabled:               "false",
 					identity.SettingKeyRegistrationEmailNormalization:   "false",
@@ -1329,6 +1334,7 @@ func TestAPIContracts(t *testing.T) {
 						"invitation_code_enabled": false,
 						"home_content": "",
 					"hide_ccs_import_button": false,
+					"show_user_id": true,
 					"grok_default_text_model": "grok-4.6",
 					"grok_default_base_url_mode": "cli",
 					"purchase_subscription_enabled": false,
@@ -1678,6 +1684,7 @@ func TestAPIContracts(t *testing.T) {
 					"doc_url": "",
 					"home_content": "",
 					"hide_ccs_import_button": false,
+					"show_user_id": false,
 					"grok_default_text_model": "grok-4.6",
 					"grok_default_base_url_mode": "cli",
 					"purchase_subscription_enabled": false,
