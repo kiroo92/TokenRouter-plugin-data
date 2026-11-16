@@ -1,3 +1,4 @@
+import channelMonitor from './channelMonitor'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -15,6 +16,7 @@ import plugins from './plugins'
 
 export default {
   plugins,
+  ...channelMonitor,
   requests,
   legal: {
     login: '登录',

@@ -14,6 +14,7 @@ import (
 	"github.com/TokenFlux/TokenRouter/internal/idempotency"
 	identityhttp "github.com/TokenFlux/TokenRouter/internal/identity/httpapi"
 	notificationhttp "github.com/TokenFlux/TokenRouter/internal/notification/httpapi"
+	opshttp "github.com/TokenFlux/TokenRouter/internal/ops/httpapi"
 	paymenthttp "github.com/TokenFlux/TokenRouter/internal/payment/httpapi"
 	promotionhttp "github.com/TokenFlux/TokenRouter/internal/promotion/httpapi"
 	routinghttp "github.com/TokenFlux/TokenRouter/internal/routing/httpapi"
@@ -148,6 +149,7 @@ func providePaymentRouteMount(user *paymenthttp.PaymentHandler, webhook *payment
 // group guards.
 func provideUserRouteMount(
 	eModelMarketplace *routinghttp.MarketplaceHandler,
+	eChannelMonitor *opshttp.ChannelMonitorV2Handler,
 	eUserPromotion *promotionhttp.UserHandler,
 	eSubscription *billinghttp.SubscriptionHandler,
 	eAnnouncement *sitehttp.AnnouncementHandler,
@@ -176,6 +178,7 @@ func provideUserRouteMount(
 		usagehttp.RegisterUserRoutes(authenticated, eUsage, security.Panel.Heavy())
 		creativehttp.RegisterUserRoutes(authenticated, eCreative, security.Panel.Heavy())
 		sitehttp.RegisterUserRoutes(authenticated, eAnnouncement)
+		opshttp.RegisterChannelMonitorUserRoutes(authenticated, eChannelMonitor)
 		billinghttp.RegisterUserRoutes(authenticated, eRedeem, eSubscription)
 	}
 }
