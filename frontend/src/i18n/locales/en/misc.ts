@@ -5,6 +5,8 @@
 
 export default {
   marketplace: {
+    collapseModels: 'Hide models',
+    expandModels: 'Show {count} models',
     exclusive: 'Exclusive',
     title: 'Model Marketplace',
     subtitle: 'View available models',
@@ -40,11 +42,30 @@ export default {
     modelsStat: 'models',
     capacity: 'Capacity',
     capacityHint: 'Aggregated group load: concurrency / sessions / RPM',
-    availabilityWindow: '{days}d availability',
+    passiveMonitoring: 'Passive monitoring',
+    monitorSettings: 'Monitor settings',
+    monitorSuccessRate: 'Success rate',
+    monitorTTFT: 'TTFT P50',
+    monitorCacheRate: 'Cache hit rate',
+    monitorCacheHint: 'Cache-read tokens as a share of input and cache tokens.',
+    monitorDelayed: 'Monitoring data is delayed',
+    monitorHistoryFilling: 'Filling historical data',
+    monitorUpdated: 'Data through {time}',
+    monitorInsufficientHint:
+      'Insufficient eligible requests in the last {window} to assess channel health.',
+    monitorStates: {
+      healthy: 'Healthy',
+      warning: 'Watch',
+      critical: 'Critical',
+      unknown: 'Insufficient samples',
+    },
+    durationMinutes: '{count} minutes',
+    durationDays: '{count} days',
+    availabilityWindow: '{window} availability',
     availabilityNoData: 'No data',
     availabilityHint:
-      '{days}-day active probe availability {rate} ({success} success / {total} total)',
-    availabilityHintNoData: 'No active probe data in the last {days} days',
+      '{window} passive request availability {rate} ({success} success / {total} total)',
+    availabilityHintNoData: 'No passive request data in the last {window}',
     rateMultiplier: 'Group Multiplier',
     rateMultiplierValue: 'Group Multiplier {multiplier}',
     maxDiscountHint:

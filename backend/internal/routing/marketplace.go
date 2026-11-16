@@ -71,11 +71,11 @@ type ModelMarketplaceGroup struct {
 	// Capacity is omitted when IncludeCapacity is false, a capacity reader is
 	// absent or fails, or the returned map contains no entry for this group.
 	Capacity *GroupCapacitySummary // optional group capacity summary
-	// Availability is queried for visible groups with enabled probe configuration.
+	// Availability is queried for visible public groups with eligible providers.
 	// Nil represents absent readers, failed queries, or an unavailable history
 	// entry. The supplied summary and its nested buckets remain borrowed from the
 	// history reader and are treated as read-only.
-	Availability *GroupAvailabilitySummary // optional recorded probe summary
+	Availability *GroupAvailabilitySummary // optional passive request summary
 	ModelCount   int                       // returned requestable model count
 	Models       []ModelMarketplaceModel   // eligible visible model presentations
 }
@@ -196,9 +196,9 @@ type MarketplaceCapacity interface {
 // groups.
 type MarketplaceAvailability interface {
 	// GetSummaryByGroupIDs reads availability counts and the latest stored status
-	// for the selected groups. Window and bucket sizes govern the time series,
-	// while the supplied timezone and query time define its observation range.
-	GetSummaryByGroupIDs(context.Context, []int64, int, int, string, time.Time) (map[int64]*GroupAvailabilitySummary, error)
+	// for the selected groups. Fractional days and whole bucket minutes govern the
+	// time series, while the supplied timezone and query time define its range.
+	GetSummaryByGroupIDs(context.Context, []int64, float64, int, string, time.Time) (map[int64]*GroupAvailabilitySummary, error)
 }
 
 // MarketplaceQuoteRequest identifies the group and model used for a public
@@ -235,7 +235,7 @@ type MarketplaceOptions struct {
 	// blank. The history reader decides its response to an invalid nonblank
 	// timezone.
 	Timezone string // availability bucket interpretation timezone
-	// Now is called when querying a nonempty set of visible probe-enabled groups.
+	// Now is called when querying a nonempty set of visible public groups.
 	// NewMarketplace retains it as supplied, so that observation path requires a
 	// configured callback.
 	Now func() time.Time // availability query time callback
@@ -260,7 +260,7 @@ type Marketplace struct {
 
 // NewMarketplace retains readers for active groups, models, prices, and
 // optional observations. Construction performs no queries; callers configure
-// Now when querying enabled probe history and Warn for provider-prefetch or
+// Now when querying passive request history and Warn for provider-prefetch or
 // attribute-error reporting paths.
 func NewMarketplace(groups MarketplaceGroups, settings MarketplaceSettings, models MarketplaceModels, resolver RequestableResolver, prices MarketplacePrices, capacity MarketplaceCapacity, availability MarketplaceAvailability, options MarketplaceOptions) *Marketplace {
 	return &Marketplace{groups: groups, settings: settings, models: models, requestable: resolver, prices: prices, capacity: capacity, availability: availability, options: options}
@@ -493,7 +493,7 @@ func marketplaceGroupCapacity(capacityMap map[int64]GroupCapacitySummary, groupI
 	return &capacity
 }
 
-// getVisibleAvailabilityMap reads optional history for authorized probe-enabled
+// getVisibleAvailabilityMap reads optional passive history for authorized
 // groups with active providers. Missing readers, empty usable IDs, or query
 // failure returns nil; it passes the normalized display window, trimmed
 // timezone or UTC, and injected query time.
@@ -508,9 +508,6 @@ func (s *Marketplace) getVisibleAvailabilityMap(ctx context.Context, groups []Gr
 		if group.ActiveProviderCount <= 0 {
 			continue
 		}
-		if !group.AvailabilityProbeConfig.Enabled {
-			continue
-		}
 		groupIDs = append(groupIDs, group.ID)
 	}
 	if len(groupIDs) == 0 {
@@ -521,7 +518,7 @@ func (s *Marketplace) getVisibleAvailabilityMap(ctx context.Context, groups []Gr
 	if strings.TrimSpace(s.options.Timezone) != "" {
 		timezone = strings.TrimSpace(s.options.Timezone)
 	}
-	// Probe history is optional observation data, so a failed read yields unknown
+	// Passive history is optional observation data, so a failed read yields unknown
 	// history while the already resolved model catalog and quotes remain
 	// available.
 	windowDays, bucketMinutes := s.resolveMarketplaceAvailabilityWindow(ctx)
@@ -536,7 +533,7 @@ func (s *Marketplace) getVisibleAvailabilityMap(ctx context.Context, groups []Gr
 // bucket settings. Missing settings readers or read failures select shared
 // defaults; usable stored values are parsed and normalized together before an
 // availability query.
-func (s *Marketplace) resolveMarketplaceAvailabilityWindow(ctx context.Context) (int, int) {
+func (s *Marketplace) resolveMarketplaceAvailabilityWindow(ctx context.Context) (float64, int) {
 	if s == nil || s.settings == nil {
 		return DefaultMarketplaceAvailabilityWindowDays, DefaultMarketplaceAvailabilityBucketMinutes
 	}
@@ -553,17 +550,17 @@ func (s *Marketplace) resolveMarketplaceAvailabilityWindow(ctx context.Context) 
 	return ParseMarketplaceAvailabilityWindowSettings(settings)
 }
 
-// ParseMarketplaceAvailabilityWindowSettings parses positive stored day and
-// minute values independently before applying shared window normalization.
+// ParseMarketplaceAvailabilityWindowSettings parses stored fractional days and
+// whole bucket minutes independently before applying shared window normalization.
 // Missing, malformed, or nonpositive values retain their defaults, and
 // normalization can widen buckets to bound the returned series.
-func ParseMarketplaceAvailabilityWindowSettings(settings map[string]string) (int, int) {
+func ParseMarketplaceAvailabilityWindowSettings(settings map[string]string) (float64, int) {
 	windowDays := DefaultMarketplaceAvailabilityWindowDays
 	bucketMinutes := DefaultMarketplaceAvailabilityBucketMinutes
 	// Parse the two stored values independently so a valid day count still applies
 	// when only the bucket value is malformed, with defaults bounding the remaining
 	// unknown input.
-	if parsed, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyMarketplaceAvailabilityWindowDays])); err == nil && parsed > 0 {
+	if parsed, err := strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyMarketplaceAvailabilityWindowDays]), 64); err == nil && parsed > 0 {
 		windowDays = parsed
 	}
 	if parsed, err := strconv.Atoi(strings.TrimSpace(settings[SettingKeyMarketplaceAvailabilityBucketMinutes])); err == nil && parsed > 0 {

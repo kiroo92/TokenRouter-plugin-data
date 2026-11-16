@@ -11,7 +11,8 @@ import (
 )
 
 // http_modules_wire.go registers constructors for billing, announcement, and
-// Ops HTTP handlers with Wire. Announcement handlers consume
+// Ops HTTP handlers with Wire, including passive channel monitoring.
+// Announcement handlers consume
 // AnnouncementService, and subscription and redeem handlers consume their
 // billing use cases. These HTTP constructors provide concrete handler types to
 // application route mounting, alongside the Ops handler constructed from
@@ -29,4 +30,5 @@ var nativeHTTPProviders = wire.NewSet(
 	sitehttp.NewAdminAnnouncementHandler,
 	provideOpsWSOptions,
 	opshttp.NewOpsHandler,
+	provideChannelMonitor,
 )

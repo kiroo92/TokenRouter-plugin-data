@@ -2,6 +2,7 @@ import { defineComponent, nextTick, reactive } from 'vue'
 import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ModelMarketplaceView from '../ModelMarketplaceView.vue'
+import Pagination from '@/components/common/Pagination.vue'
 import { modelIconData } from '@/utils/modelIconData'
 import type { MarketplaceGroup, MarketplaceModelPricing } from '@/api/marketplace.types'
 
@@ -219,8 +220,9 @@ async function chooseFilterOption(wrapper: VueWrapper, fieldLabel: string, value
 
 // mountMarketplace mounts the real catalog page with inert layout collaborators.
 // Filter substitutes retain user events, while model cards remain real components.
-// The helper drains pending promises before returning the wrapper to its caller.
-async function mountMarketplace() {
+// Existing card assertions open groups after loading; disclosure cases pass false
+// to inspect the initial lazy state. Pending catalog requests remain unopened.
+async function mountMarketplace(expandModels = true) {
   const wrapper = mount(ModelMarketplaceView, {
     global: {
       stubs: {
@@ -235,6 +237,13 @@ async function mountMarketplace() {
     },
   })
   await flushPromises()
+  if (expandModels) {
+    for (const toggle of wrapper.findAll('[data-testid="marketplace-group-toggle"]')) {
+      if (toggle.attributes('aria-expanded') !== 'true') {
+        await toggle.trigger('click')
+      }
+    }
+  }
   return wrapper
 }
 
@@ -248,6 +257,108 @@ function visibleTooltips() {
 }
 
 describe('ModelMarketplaceView', () => {
+  // A fresh visit shows all group summaries with deferred model cards.
+  // Opening and closing one group leaves other groups independently usable and retains visited cards.
+  it('lists collapsed groups and expands their models independently', async () => {
+    const fixture = marketplaceFixture()
+    fixture[1].models = [marketplaceModel('pro-model', 'Pro Model', tokenPricing)]
+    getAvailableMarketplaceModels.mockResolvedValueOnce(fixture)
+    const wrapper = await mountMarketplace(false)
+    const sections = wrapper.findAll('[data-testid="marketplace-group-section"]')
+    const toggles = wrapper.findAll('[data-testid="marketplace-group-toggle"]')
+    expect(sections).toHaveLength(4)
+    expect(wrapper.findAll('article')).toHaveLength(0)
+    for (const toggle of toggles) {
+      expect(toggle.attributes('aria-expanded')).toBe('false')
+      expect(wrapper.find(`#${toggle.attributes('aria-controls')}`).exists()).toBe(true)
+    }
+    await sections[0].get('h2').trigger('click')
+    expect(toggles[0].attributes('aria-expanded')).toBe('false')
+    await toggles[0].trigger('click')
+    expect(toggles[0].attributes('aria-expanded')).toBe('true')
+    expect(wrapper.findAll('article')).toHaveLength(2)
+    await toggles[1].trigger('click')
+    expect(toggles[1].attributes('aria-expanded')).toBe('true')
+    expect(toggles[0].attributes('aria-expanded')).toBe('true')
+    expect(sections[1].get('article').text()).toContain('Pro Model')
+    await toggles[0].trigger('click')
+    expect(toggles[0].attributes('aria-expanded')).toBe('false')
+    expect(toggles[1].attributes('aria-expanded')).toBe('true')
+    expect(sections[0].findAll('article')).toHaveLength(2)
+    expect(wrapper.get('#marketplace-group-models-1').attributes('aria-hidden')).toBe('true')
+    wrapper.unmount()
+  })
+
+  // Large groups render twelve cards at a time and retain their own page on closing.
+  // Search still finds off-page models, and changing filters resets model page positions.
+  it('pages expanded groups and searches their complete catalogs', async () => {
+    const models = Array.from({ length: 25 }, (_, index) =>
+      marketplaceModel(`model-${index}`, `Model ${index}`, tokenPricing),
+    )
+    getAvailableMarketplaceModels.mockResolvedValueOnce([
+      marketplaceGroup(1, 'Large', models),
+      marketplaceGroup(2, 'Other', [marketplaceModel('other', 'Other Model', tokenPricing)]),
+    ])
+    const wrapper = await mountMarketplace(false)
+    await wrapper.get('#marketplace-group-toggle-1').trigger('click')
+    const largeGroup = wrapper.get('[data-testid="marketplace-group-section"][data-group-id="1"]')
+    expect(largeGroup.findAll('article')).toHaveLength(12)
+    expect(largeGroup.findAll('article')[0].text()).toContain('Model 0')
+    largeGroup.getComponent(Pagination).vm.$emit('update:page', 3)
+    await flushPromises()
+    expect(largeGroup.findAll('article')).toHaveLength(1)
+    expect(largeGroup.get('article').text()).toContain('Model 24')
+    const otherGroup = wrapper.get('[data-testid="marketplace-group-section"][data-group-id="2"]')
+    await otherGroup.get('[data-testid="marketplace-group-toggle"]').trigger('click')
+    expect(otherGroup.get('article').text()).toContain('Other Model')
+    await largeGroup.get('[data-testid="marketplace-group-toggle"]').trigger('click')
+    await largeGroup.get('[data-testid="marketplace-group-toggle"]').trigger('click')
+    expect(largeGroup.getComponent(Pagination).props('page')).toBe(3)
+    expect(largeGroup.get('article').text()).toContain('Model 24')
+    expect(
+      otherGroup.get('[data-testid="marketplace-group-toggle"]').attributes('aria-expanded'),
+    ).toBe('true')
+    await wrapper.get('[data-testid="marketplace-search"]').setValue('model-24')
+    await flushPromises()
+    expect(wrapper.findAll('article')).toHaveLength(1)
+    expect(wrapper.get('article').text()).toContain('Model 24')
+    expect(wrapper.findComponent(Pagination).exists()).toBe(false)
+    await wrapper.get('[data-testid="marketplace-search"]').setValue('')
+    await flushPromises()
+    expect(largeGroup.getComponent(Pagination).props('page')).toBe(1)
+    expect(largeGroup.findAll('article')).toHaveLength(12)
+    wrapper.unmount()
+  })
+
+  // Search and refreshed responses can remove previously opened groups.
+  // Clearing search restores their expansion choices, while newly matched groups start collapsed.
+  it('keeps expansion choices when filtering or refreshing the group list', async () => {
+    const wrapper = await mountMarketplace(false)
+    await wrapper.get('#marketplace-group-toggle-2').trigger('click')
+    await wrapper.get('[data-testid="marketplace-search"]').setValue('Plus 2')
+    expect(
+      wrapper.get('[data-testid="marketplace-group-section"]').attributes('data-group-id'),
+    ).toBe('3')
+    expect(wrapper.get('#marketplace-group-toggle-3').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.findAll('article')).toHaveLength(0)
+    await wrapper.get('#marketplace-group-toggle-3').trigger('click')
+    await wrapper.get('[data-testid="marketplace-search"]').setValue('no matching group')
+    expect(wrapper.find('[data-testid="marketplace-group-section"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('marketplace.emptyTitle')
+    await wrapper.get('[data-testid="marketplace-search"]').setValue('')
+    expect(wrapper.findAll('[data-testid="marketplace-group-section"]')).toHaveLength(4)
+    expect(wrapper.get('#marketplace-group-toggle-2').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('#marketplace-group-toggle-3').attributes('aria-expanded')).toBe('true')
+    getAvailableMarketplaceModels.mockResolvedValueOnce([marketplaceFixture()[2]])
+    window.dispatchEvent(new Event('locale-changed'))
+    await flushPromises()
+    expect(
+      wrapper.get('[data-testid="marketplace-group-section"]').attributes('data-group-id'),
+    ).toBe('3')
+    expect(wrapper.get('#marketplace-group-toggle-3').attributes('aria-expanded')).toBe('true')
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     localStorage.clear()
     routeState.query = {}

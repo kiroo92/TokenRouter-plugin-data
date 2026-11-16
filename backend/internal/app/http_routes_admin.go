@@ -92,6 +92,7 @@ func provideAdminRouteMount(eAdminTLSFingerprintProfile *routeegress.TLSFingerpr
 	eAdminUser *routeidentity.AdminUserHandler[dto.APIKey[routingdto.Group]],
 	eAdminOps *routeops.OpsHandler,
 	ePlugins *routeplugin.Handler,
+	eChannelMonitor *routeops.ChannelMonitorV2Handler,
 	eSearch *routesearch.Handler,
 ) adminRouteMount {
 	return func(v1 *gin.RouterGroup, security httpRouteSecurity, protocolCatalog gin.HandlerFunc) {
@@ -213,6 +214,7 @@ func provideAdminRouteMount(eAdminTLSFingerprintProfile *routeegress.TLSFingerpr
 			// Operations monitoring.
 			{
 				routeops.RegisterOpsRoutes(admin, eAdminOps)
+				routeops.RegisterChannelMonitorAdminRoutes(admin, eChannelMonitor)
 			}
 
 			// System administration.
