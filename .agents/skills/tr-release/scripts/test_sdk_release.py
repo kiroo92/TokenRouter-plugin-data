@@ -140,6 +140,20 @@ class SDKReleaseTests(unittest.TestCase):
         self.assertEqual(report["web"]["changes"], [])
         sdk_release.check_review(report, report["head"])
 
+    def test_go_module_download_uses_the_selected_distribution(self):
+        """An independent distribution must verify its own published Go module.
+
+        Release metadata and the proxy download use the same repository, so a
+        version published only in an upstream namespace cannot satisfy acceptance.
+        """
+        with patch.object(sdk_release, "command", side_effect=[
+            json.dumps({"tagName": "plugin-sdk/go/v0.4.0", "isDraft": False, "isPrerelease": False}),
+            json.dumps({"Version": "v0.4.0", "Sum": "h1:fixture"}),
+        ]) as read:
+            sdk_release.verify_go("0.4.0", "kiroo92/TokenRouter-plugin-data")
+        self.assertEqual(read.call_args_list[0].args[5], "kiroo92/TokenRouter-plugin-data")
+        self.assertEqual(read.call_args_list[1].args[-1], "github.com/kiroo92/TokenRouter-plugin-data/plugin-sdk/go@v0.4.0")
+
     def test_go_only_change_requires_publication_before_gateway_acceptance(self):
         """A Go implementation fix requires its patch release before the gateway.
 

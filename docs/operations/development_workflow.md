@@ -435,7 +435,7 @@ DOMPurify 用于 Markdown 页面、公告、支付说明和 SVG 图标的内容�
 
 ## 发布
 
-本独立分发仓库为 `kiroo92/TokenRouter-plugin-data`，GHCR 镜像使用同名小写仓库路径。宿主构建使用仓库内 Go SDK 源码；独立插件可通过版本化 replace 引用本仓库的 Go SDK v0.3.0，接入方式见 [Go SDK 说明](../../plugin-sdk/go/README.md)。SDK 使用 `plugin-sdk/go/v<version>` 标签和非 Latest 的 GitHub Release，发布后应从独立插件工程验证公共模块下载、测试和编译。此分发不向 TokenFlux 的 Go SDK 或 npm 命名空间发布新包。上游 SDK 发布流程如下，只有对应包的维护者执行。
+本独立分发仓库为 `kiroo92/TokenRouter-plugin-data`，GHCR 镜像使用同名小写仓库路径。宿主构建使用仓库内 Go SDK 源码；独立插件可通过版本化 replace 引用本仓库的 Go SDK v0.4.0，接入方式见 [Go SDK 说明](../../plugin-sdk/go/README.md)。SDK 使用 `plugin-sdk/go/v<version>` 标签和非 Latest 的 GitHub Release，发布后应从独立插件工程验证公共模块下载、测试和编译。此分发不向 TokenFlux 的 Go SDK 或 npm 命名空间发布新包。上游 SDK 发布流程如下，只有对应包的维护者执行。
 
 项目内置 [tr-release 技能](../../.agents/skills/tr-release/SKILL.md)，用于准备版本范围、核对发布说明和发布验收。Release 描述默认展示英文；技能在发布流程完成后，将完整的简体中文译文追加到描述最底部的「中文翻译」折叠区，覆盖更新说明、安装和文档部分。在仓库根目录运行 `python3 .agents/skills/tr-release/scripts/tr_release.py --prepare` 获取待发布范围。
 

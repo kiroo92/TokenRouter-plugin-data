@@ -467,6 +467,9 @@ message UserUsageStats {
   int64 tokens = 3;
   // Aggregated decimal usage cost.
   string cost = 4;
+  // Wallet-funded decimal cost, truncated to eight fractional digits.
+  // Empty means the host does not report funding splits.
+  string balance_cost = 5;
 }
 
 // GetUsageStatsResponse carries the result of its corresponding plugin protocol operation.

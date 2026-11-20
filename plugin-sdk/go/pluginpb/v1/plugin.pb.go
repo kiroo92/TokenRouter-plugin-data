@@ -2496,7 +2496,10 @@ type UserUsageStats struct {
 	// Aggregated reported token count.
 	Tokens int64 `protobuf:"varint,3,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	// Aggregated decimal usage cost.
-	Cost          string `protobuf:"bytes,4,opt,name=cost,proto3" json:"cost,omitempty"`
+	Cost string `protobuf:"bytes,4,opt,name=cost,proto3" json:"cost,omitempty"`
+	// Wallet-funded decimal cost, truncated to eight fractional digits.
+	// Empty means the host does not report funding splits.
+	BalanceCost   string `protobuf:"bytes,5,opt,name=balance_cost,json=balanceCost,proto3" json:"balance_cost,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2555,6 +2558,13 @@ func (x *UserUsageStats) GetTokens() int64 {
 func (x *UserUsageStats) GetCost() string {
 	if x != nil {
 		return x.Cost
+	}
+	return ""
+}
+
+func (x *UserUsageStats) GetBalanceCost() string {
+	if x != nil {
+		return x.BalanceCost
 	}
 	return ""
 }
@@ -4400,12 +4410,13 @@ const file_tokenrouter_plugin_v1_plugin_proto_rawDesc = "" +
 	"\buser_ids\x18\x01 \x03(\x03R\auserIds\x12\x1d\n" +
 	"\n" +
 	"start_unix\x18\x02 \x01(\x03R\tstartUnix\x12\x19\n" +
-	"\bend_unix\x18\x03 \x01(\x03R\aendUnix\"q\n" +
+	"\bend_unix\x18\x03 \x01(\x03R\aendUnix\"\x94\x01\n" +
 	"\x0eUserUsageStats\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1a\n" +
 	"\brequests\x18\x02 \x01(\x03R\brequests\x12\x16\n" +
 	"\x06tokens\x18\x03 \x01(\x03R\x06tokens\x12\x12\n" +
-	"\x04cost\x18\x04 \x01(\tR\x04cost\"T\n" +
+	"\x04cost\x18\x04 \x01(\tR\x04cost\x12!\n" +
+	"\fbalance_cost\x18\x05 \x01(\tR\vbalanceCost\"T\n" +
 	"\x15GetUsageStatsResponse\x12;\n" +
 	"\x05stats\x18\x01 \x03(\v2%.tokenrouter.plugin.v1.UserUsageStatsR\x05stats\"\x81\x01\n" +
 	"\x16GetUsageRankingRequest\x12\x1d\n" +

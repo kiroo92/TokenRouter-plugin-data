@@ -23,4 +23,4 @@ SDK 与宿主分开发布。签到示例要求宿主至少为 0.6.0；SDK 发布
 
 ## 本分发的持久目录 SDK
 
-`kiroo92/TokenRouter-plugin-data` 的 Go SDK v0.3.0 提供 `Env.DataDir` 和支持本地文件的测试宿主，与本分发宿主 v0.7.3 配套使用。插件通过版本化 Go replace 引用此模块，命令见 [Go SDK 接入说明](../../../plugin-sdk/go/README.md)。这项后端能力不需要改动 Web SDK。
+`kiroo92/TokenRouter-plugin-data` 的 Go SDK v0.4.0 提供 `Env.DataDir`、支持本地文件的测试宿主和余额消费字段 `UserUsageStats.balance_cost`。DataDir 从宿主 v0.7.3 起可用，余额消费字段需要宿主 v0.7.6 或更高版本。插件通过版本化 Go replace 引用此模块，命令见 [Go SDK 接入说明](../../../plugin-sdk/go/README.md)。这项后端能力不需要改动 Web SDK。

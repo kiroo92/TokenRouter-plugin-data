@@ -15,6 +15,7 @@ import (
 	"github.com/TokenFlux/TokenRouter/internal/plugin"
 	"github.com/TokenFlux/TokenRouter/internal/routing"
 	routinghttp "github.com/TokenFlux/TokenRouter/internal/routing/httpapi"
+	"github.com/TokenFlux/TokenRouter/internal/usage"
 )
 
 // pluginOrderQueryFixture supplies a native order containing intentionally private payment data.
@@ -28,6 +29,21 @@ type pluginMarketplaceGroups struct{}
 
 // pluginMarketplaceModels supplies a deterministic public model without external providers.
 type pluginMarketplaceModels struct{}
+
+// pluginUsageQueryFixture supplies distinct total and wallet charge observations.
+type pluginUsageQueryFixture struct {
+	usage.UsageLogRepository // unused report operations
+}
+
+// GetBatchUserUsageStats returns requested actors' total charges including subscription-funded usage.
+func (pluginUsageQueryFixture) GetBatchUserUsageStats(context.Context, []int64, time.Time, time.Time) (map[int64]*usage.BatchUserUsageStats, error) {
+	return map[int64]*usage.BatchUserUsageStats{7: {UserID: 7, TotalActualCost: 110}}, nil
+}
+
+// GetBatchUserUsageCounts returns exact decimal wallet spending with actor counters.
+func (pluginUsageQueryFixture) GetBatchUserUsageCounts(context.Context, []int64, time.Time, time.Time) (map[int64]usage.BatchUserUsageCounts, error) {
+	return map[int64]usage.BatchUserUsageCounts{7: {UserID: 7, Requests: 3, Tokens: 42, BalanceCost: "9.99999999"}}, nil
+}
 
 // GetUserOrders returns the fixture page without exposing storage behavior to projection assertions.
 func (f pluginOrderQueryFixture) GetUserOrders(context.Context, int64, payment.OrderListParams) ([]*payment.Order, int, error) {
@@ -88,4 +104,20 @@ func TestPluginModelsMatchPublicHTTPResponse(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, response.Body.String(), string(data))
 	require.Contains(t, string(data), `"id":"model"`)
+}
+
+// TestPluginUsagePreservesWalletFundingSplit reads total charges and exact wallet
+// spending through the application adapter. Plugin rewards receive the wallet
+// amount without float conversion while ordinary consumers retain total charges.
+func TestPluginUsagePreservesWalletFundingSplit(t *testing.T) {
+	dashboard := usage.NewDashboardService(pluginUsageQueryFixture{}, nil, nil, nil)
+	query := pluginUsageQueries{dashboard: dashboard}
+	start := time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)
+	rows, err := query.Stats(t.Context(), []int64{7}, start, start.Add(time.Hour))
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "110", rows[0].Cost)
+	require.Equal(t, "9.99999999", rows[0].BalanceCost)
+	require.Equal(t, int64(3), rows[0].Requests)
+	require.Equal(t, int64(42), rows[0].Tokens)
 }

@@ -104,6 +104,9 @@ type UserUsageView struct {
 	Requests int64  // period completed request count
 	Tokens   int64  // period reported token count
 	Cost     string // period decimal user charge
+	// BalanceCost contains wallet-funded charges, including the wallet portion of
+	// mixed funding. Empty means the reader does not provide funding information.
+	BalanceCost string
 }
 
 // RankingView retains the existing public ranking's sanitized identity and measurements.

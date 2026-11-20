@@ -22,10 +22,9 @@ import sys
 # reviews, and checks public package availability before the gateway tag can be
 # created. This script never publishes, retags, or retries a registry mutation.
 
-# These identities select the existing public SDKs; version parsing deliberately
+# These values select the public Web registry and SDK version syntax; parsing
 # rejects stable major releases above zero under the project's current policy.
 PACKAGE = "@tokenflux/tokenrouter-plugin-sdk"
-MODULE = "github.com/TokenFlux/TokenRouter/plugin-sdk/go"
 REGISTRY = "https://registry.npmjs.org"
 VERSION = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 SHA = re.compile(r"[0-9a-f]{40}")
@@ -285,6 +284,8 @@ def verify_go(version: str, repo: str) -> None:
 
     A tag alone cannot complete gateway acceptance. The Release must be public
     and the module must be available through the public proxy with checksum verification.
+    Independent distributions download from their own repository path, matching
+    the versioned replacement used by their plugin consumers.
     """
     tag = f"plugin-sdk/go/v{version}"
     release = json.loads(command("gh", "release", "view", tag, "--repo", repo,
@@ -293,7 +294,8 @@ def verify_go(version: str, repo: str) -> None:
         raise ReleaseError("Go SDK Release has not completed stable publication")
     env = {**os.environ, "GOWORK": "off", "GOPROXY": "https://proxy.golang.org", "GOSUMDB": "sum.golang.org",
            "GONOPROXY": "none", "GONOSUMDB": "none", "GOPRIVATE": ""}
-    module = json.loads(command("go", "mod", "download", "-json", f"{MODULE}@v{version}", env=env))
+    module_path = f"github.com/{repo}/plugin-sdk/go"
+    module = json.loads(command("go", "mod", "download", "-json", f"{module_path}@v{version}", env=env))
     if module.get("Error") or module.get("Version") != f"v{version}" or not module.get("Sum"):
         raise ReleaseError("Go SDK module is not publicly available with a checksum")
 

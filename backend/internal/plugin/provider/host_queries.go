@@ -151,7 +151,13 @@ func (s *hostService) GetUsageStats(ctx context.Context, request *pluginpb.GetUs
 	}
 	response := &pluginpb.GetUsageStatsResponse{Stats: make([]*pluginpb.UserUsageStats, 0, len(values))}
 	for _, value := range values {
-		response.Stats = append(response.Stats, &pluginpb.UserUsageStats{UserId: value.UserID, Requests: value.Requests, Tokens: value.Tokens, Cost: value.Cost})
+		response.Stats = append(response.Stats, &pluginpb.UserUsageStats{
+			UserId:      value.UserID,
+			Requests:    value.Requests,
+			Tokens:      value.Tokens,
+			Cost:        value.Cost,
+			BalanceCost: value.BalanceCost,
+		})
 	}
 	return response, nil
 }

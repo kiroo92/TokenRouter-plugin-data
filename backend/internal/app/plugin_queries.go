@@ -29,9 +29,9 @@ import (
 //
 // Each adapter retains only its relevant domain collaborators. Batch usage combines
 // the existing charge report with one bounded counter query because the native
-// charge response does not contain requests or tokens. Scalars are copied into
-// new plugin values, and monetary text preserves the domain service's reported
-// number without introducing an exchange-rate conversion or a new billing effect.
+// charge response does not contain requests, tokens, or wallet-only costs.
+// Scalars are copied into new plugin values, and monetary text preserves the
+// domain service's reported number without an exchange-rate conversion.
 
 // pluginSiteQueries reads public branding and the configured host timezone.
 type pluginSiteQueries struct {
@@ -288,6 +288,8 @@ func (q *pluginUsageQueries) Summary(ctx context.Context, id int64) (plugin.Usag
 
 // Stats combines native batch charges with one explicit actor counter query.
 // Charge behavior and platform handling stay with the existing dashboard method.
+// Wallet costs come from the counter query's decimal funding split, allowing reward
+// consumers to exclude subscriptions while other consumers retain total charges.
 // Missing map entries contribute zero observations for their requested actor ID.
 // Both reports use the same requested interval but remain separate database
 // observations, so concurrent ingestion can advance data between their reads.
@@ -308,7 +310,13 @@ func (q *pluginUsageQueries) Stats(ctx context.Context, ids []int64, start, end 
 		if value := charges[id]; value != nil {
 			cost = value.TotalActualCost
 		}
-		result = append(result, plugin.UserUsageView{UserID: id, Requests: counts[id].Requests, Tokens: counts[id].Tokens, Cost: pluginDecimal(cost)})
+		result = append(result, plugin.UserUsageView{
+			UserID:      id,
+			Requests:    counts[id].Requests,
+			Tokens:      counts[id].Tokens,
+			Cost:        pluginDecimal(cost),
+			BalanceCost: counts[id].BalanceCost,
+		})
 	}
 	return result, nil
 }
