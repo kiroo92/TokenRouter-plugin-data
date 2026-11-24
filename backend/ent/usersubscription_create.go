@@ -79,6 +79,34 @@ func (_c *UserSubscriptionCreate) SetPlanID(v int64) *UserSubscriptionCreate {
 	return _c
 }
 
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (_c *UserSubscriptionCreate) SetConsumptionPriority(v int) *UserSubscriptionCreate {
+	_c.mutation.SetConsumptionPriority(v)
+	return _c
+}
+
+// SetNillableConsumptionPriority sets the "consumption_priority" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableConsumptionPriority(v *int) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetConsumptionPriority(*v)
+	}
+	return _c
+}
+
+// SetIndependent sets the "independent" field.
+func (_c *UserSubscriptionCreate) SetIndependent(v bool) *UserSubscriptionCreate {
+	_c.mutation.SetIndependent(v)
+	return _c
+}
+
+// SetNillableIndependent sets the "independent" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableIndependent(v *bool) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetIndependent(*v)
+	}
+	return _c
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_c *UserSubscriptionCreate) SetStartsAt(v time.Time) *UserSubscriptionCreate {
 	_c.mutation.SetStartsAt(v)
@@ -396,6 +424,14 @@ func (_c *UserSubscriptionCreate) defaults() error {
 		v := usersubscription.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.ConsumptionPriority(); !ok {
+		v := usersubscription.DefaultConsumptionPriority
+		_c.mutation.SetConsumptionPriority(v)
+	}
+	if _, ok := _c.mutation.Independent(); !ok {
+		v := usersubscription.DefaultIndependent
+		_c.mutation.SetIndependent(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := usersubscription.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -435,6 +471,12 @@ func (_c *UserSubscriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.PlanID(); !ok {
 		return &ValidationError{Name: "plan_id", err: errors.New(`ent: missing required field "UserSubscription.plan_id"`)}
+	}
+	if _, ok := _c.mutation.ConsumptionPriority(); !ok {
+		return &ValidationError{Name: "consumption_priority", err: errors.New(`ent: missing required field "UserSubscription.consumption_priority"`)}
+	}
+	if _, ok := _c.mutation.Independent(); !ok {
+		return &ValidationError{Name: "independent", err: errors.New(`ent: missing required field "UserSubscription.independent"`)}
 	}
 	if _, ok := _c.mutation.StartsAt(); !ok {
 		return &ValidationError{Name: "starts_at", err: errors.New(`ent: missing required field "UserSubscription.starts_at"`)}
@@ -506,6 +548,14 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(usersubscription.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.ConsumptionPriority(); ok {
+		_spec.SetField(usersubscription.FieldConsumptionPriority, field.TypeInt, value)
+		_node.ConsumptionPriority = value
+	}
+	if value, ok := _c.mutation.Independent(); ok {
+		_spec.SetField(usersubscription.FieldIndependent, field.TypeBool, value)
+		_node.Independent = value
 	}
 	if value, ok := _c.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)
@@ -741,6 +791,36 @@ func (u *UserSubscriptionUpsert) SetPlanID(v int64) *UserSubscriptionUpsert {
 // UpdatePlanID sets the "plan_id" field to the value that was provided on create.
 func (u *UserSubscriptionUpsert) UpdatePlanID() *UserSubscriptionUpsert {
 	u.SetExcluded(usersubscription.FieldPlanID)
+	return u
+}
+
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (u *UserSubscriptionUpsert) SetConsumptionPriority(v int) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldConsumptionPriority, v)
+	return u
+}
+
+// UpdateConsumptionPriority sets the "consumption_priority" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateConsumptionPriority() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldConsumptionPriority)
+	return u
+}
+
+// AddConsumptionPriority adds v to the "consumption_priority" field.
+func (u *UserSubscriptionUpsert) AddConsumptionPriority(v int) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldConsumptionPriority, v)
+	return u
+}
+
+// SetIndependent sets the "independent" field.
+func (u *UserSubscriptionUpsert) SetIndependent(v bool) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldIndependent, v)
+	return u
+}
+
+// UpdateIndependent sets the "independent" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateIndependent() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldIndependent)
 	return u
 }
 
@@ -1155,6 +1235,41 @@ func (u *UserSubscriptionUpsertOne) SetPlanID(v int64) *UserSubscriptionUpsertOn
 func (u *UserSubscriptionUpsertOne) UpdatePlanID() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdatePlanID()
+	})
+}
+
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (u *UserSubscriptionUpsertOne) SetConsumptionPriority(v int) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetConsumptionPriority(v)
+	})
+}
+
+// AddConsumptionPriority adds v to the "consumption_priority" field.
+func (u *UserSubscriptionUpsertOne) AddConsumptionPriority(v int) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddConsumptionPriority(v)
+	})
+}
+
+// UpdateConsumptionPriority sets the "consumption_priority" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateConsumptionPriority() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateConsumptionPriority()
+	})
+}
+
+// SetIndependent sets the "independent" field.
+func (u *UserSubscriptionUpsertOne) SetIndependent(v bool) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetIndependent(v)
+	})
+}
+
+// UpdateIndependent sets the "independent" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateIndependent() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateIndependent()
 	})
 }
 
@@ -1786,6 +1901,41 @@ func (u *UserSubscriptionUpsertBulk) SetPlanID(v int64) *UserSubscriptionUpsertB
 func (u *UserSubscriptionUpsertBulk) UpdatePlanID() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdatePlanID()
+	})
+}
+
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (u *UserSubscriptionUpsertBulk) SetConsumptionPriority(v int) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetConsumptionPriority(v)
+	})
+}
+
+// AddConsumptionPriority adds v to the "consumption_priority" field.
+func (u *UserSubscriptionUpsertBulk) AddConsumptionPriority(v int) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddConsumptionPriority(v)
+	})
+}
+
+// UpdateConsumptionPriority sets the "consumption_priority" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateConsumptionPriority() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateConsumptionPriority()
+	})
+}
+
+// SetIndependent sets the "independent" field.
+func (u *UserSubscriptionUpsertBulk) SetIndependent(v bool) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetIndependent(v)
+	})
+}
+
+// UpdateIndependent sets the "independent" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateIndependent() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateIndependent()
 	})
 }
 

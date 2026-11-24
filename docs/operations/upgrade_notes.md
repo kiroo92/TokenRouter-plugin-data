@@ -6,6 +6,12 @@
 
 各节里提到的认证缓存版本（v34 到 v46）、调度缓存命名空间，都是对应迁移发布时的值。当前代码的认证缓存版本是 46，调度缓存命名空间是 `sched:v4:`，以[提供商调度与缓存一致性](../architecture/provider_scheduling_and_cache.md)为准。后面的迁移可能取代前面的字段，所以不能只看某一节判断当前的接口；"当前状态"一列标出了已被取代的专题。
 
+## 独立订阅与消费顺序（314）
+
+`314_subscription_consumption_order.sql` 为 `user_subscriptions` 增加 `consumption_priority`、`independent` 和消费顺序索引。原有订阅的日期、额度、用量保持原样，原有 pending 订阅继续按保存的时间生效。升级后的新购买、兑换和人工发放立即创建独立订阅，同套餐可同时持有多份；每份有效期从发放时计算。
+
+前后端整体更新后，“我的订阅”按独立记录展示并允许调整使用顺序。验证顺序保存后，自动结算依次使用多份订阅，额度不足时补用余额；固定订阅的 Key 仍使用指定记录。回退旧后端会忽略使用顺序，并把独立订阅当作旧时间链处理；如已有独立订阅，回退前先核对其日期和维护操作，保留新增列，避免旧版的延长或撤销移动其他订阅。规则见[独立订阅与使用顺序](../domains/payments_and_entitlements.md#subscription_consumption_order)。
+
 <a id="config_version_2"></a>
 ## 渠道被动监控（313）
 

@@ -253,7 +253,7 @@ func lockUsageBillingUser(ctx context.Context, tx *sql.Tx, userID int64) error {
 	return err
 }
 
-// ResolveUsableSubscriptionForGroup returns the earliest-expiring currently
+// ResolveUsableSubscriptionForGroup returns the first prioritized currently
 // usable grant covering a positive group for a positive user. The read uses
 // the store database without reserving quota; callers perform transactional
 // allocation before relying on an amount remaining available.
@@ -272,8 +272,8 @@ func (r *SettlementStore) ResolvePreferredSubscriptionForGroup(ctx context.Conte
 	return r.resolveUsableSubscriptionForGroup(ctx, userID, groupID, &subscriptionID)
 }
 
-// resolveUsableSubscriptionForGroup reads eligible grant rows in expiry, start
-// and ID order using one Go observation time. Rows must belong to the positive
+// resolveUsableSubscriptionForGroup reads eligible rows by consumption priority,
+// expiry, start and ID using one Go observation time. Rows must belong to the positive
 // user, be undeleted and unheld, have stored active or pending status, contain
 // that time and cover the positive group through an unrestricted or matching plan. An
 // optional preferred ID narrows the same query.
@@ -340,7 +340,7 @@ func (r *SettlementStore) resolveUsableSubscriptionForGroup(ctx context.Context,
 						AND spg.group_id = $4
 				)
 			)
-		ORDER BY us.expires_at ASC, us.starts_at ASC, us.id ASC
+		ORDER BY us.consumption_priority ASC, us.expires_at ASC, us.starts_at ASC, us.id ASC
 	`,
 		userID,
 		billing.SubscriptionStatusActive,
@@ -1293,7 +1293,7 @@ func usageBillingNullableFloat64Ptr(v sql.NullFloat64) *float64 {
 }
 
 // allocateUsageBillingSubscriptions locks eligible payer subscriptions in
-// expiry, start and ID order and applies billing's ordered allocation plan.
+// consumption priority, expiry, start and ID order using the saved user preference.
 // The caller locks the payer first and supplies a normalized command. Balance
 // mode or a nonpositive basis skips this query; an optional preferred ID
 // narrows the eligible rows.
@@ -1383,7 +1383,7 @@ func allocateUsageBillingSubscriptions(ctx context.Context, tx *sql.Tx, cmd *bil
 `
 	}
 	query += `
-		ORDER BY expires_at ASC, starts_at ASC, id ASC
+		ORDER BY consumption_priority ASC, expires_at ASC, starts_at ASC, id ASC
 		FOR UPDATE
 	`
 	rows, err := tx.QueryContext(ctx, query, args...)

@@ -55,6 +55,24 @@ func NewUserSubscriptionRepository(client *dbent.Client) *SubscriptionStore {
 	return &SubscriptionStore{client: client}
 }
 
+// SetConsumptionPriority changes only the owned grant's spending rank and
+// modification time. Callers hold the payer lock within the context transaction;
+// zero matching rows reports a missing or deleted subscription.
+func (r *SubscriptionStore) SetConsumptionPriority(ctx context.Context, userID, id int64, priority int) error {
+	client := clientFromContext(ctx, r.client)
+	count, err := client.UserSubscription.Update().
+		Where(usersubscription.IDEQ(id), usersubscription.UserIDEQ(userID)).
+		SetConsumptionPriority(priority).
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return billing.ErrSubscriptionNotFound
+	}
+	return nil
+}
+
 // Create inserts the supplied nonnil grant and copies its generated ID and
 // timestamps back on success. Zero StartsAt uses current time, while empty
 // status and zero assignment time use schema defaults; optional nil fields
@@ -68,6 +86,8 @@ func (r *SubscriptionStore) Create(ctx context.Context, sub *billing.UserSubscri
 	builder := client.UserSubscription.Create().
 		SetUserID(sub.UserID).
 		SetPlanID(sub.PlanID).
+		SetConsumptionPriority(sub.ConsumptionPriority).
+		SetIndependent(sub.Independent).
 		SetExpiresAt(sub.ExpiresAt).
 		SetNillableDailyWindowStart(sub.DailyWindowStart).
 		SetNillableWeeklyWindowStart(sub.WeeklyWindowStart).
@@ -240,7 +260,7 @@ func (r *SubscriptionStore) Restore(ctx context.Context, subscriptionID int64, r
 }
 
 // ListByUserID returns visible user grants with loaded plans, ordered by
-// expiry then creation time descending. It does not filter stored status or
+// consumption priority, expiry, start and ID. It does not filter stored status or
 // available quota; returned records follow entity conversion's nested-sharing
 // rules.
 func (r *SubscriptionStore) ListByUserID(ctx context.Context, userID int64) ([]billing.UserSubscription, error) {
@@ -249,8 +269,10 @@ func (r *SubscriptionStore) ListByUserID(ctx context.Context, userID int64) ([]b
 		Where(usersubscription.UserIDEQ(userID)).
 		WithPlan().
 		Order(
-			dbent.Desc(usersubscription.FieldExpiresAt),
-			dbent.Desc(usersubscription.FieldCreatedAt),
+			dbent.Asc(usersubscription.FieldConsumptionPriority),
+			dbent.Asc(usersubscription.FieldExpiresAt),
+			dbent.Asc(usersubscription.FieldStartsAt),
+			dbent.Asc(usersubscription.FieldID),
 		).
 		All(ctx)
 	if err != nil {
@@ -283,7 +305,7 @@ func (r *SubscriptionStore) ListByUserIDAndPlanID(ctx context.Context, userID, p
 
 // ListActiveByUserID returns visible, unheld grants whose lifetime contains one
 // current-time observation and whose stored status is active or pending.
-// Expiry and start sort ascending; available quota and final-group coverage
+// Priority, expiry, start and ID sort ascending; quota and final-group coverage
 // are checked by service consumers.
 func (r *SubscriptionStore) ListActiveByUserID(ctx context.Context, userID int64) ([]billing.UserSubscription, error) {
 	client := clientFromContext(ctx, r.client)
@@ -298,8 +320,10 @@ func (r *SubscriptionStore) ListActiveByUserID(ctx context.Context, userID int64
 		).
 		WithPlan().
 		Order(
+			dbent.Asc(usersubscription.FieldConsumptionPriority),
 			dbent.Asc(usersubscription.FieldExpiresAt),
 			dbent.Asc(usersubscription.FieldStartsAt),
+			dbent.Asc(usersubscription.FieldID),
 		).
 		All(ctx)
 	if err != nil {
@@ -871,6 +895,8 @@ func userSubscriptionEntityToServiceWithStatusMapping(m *dbent.UserSubscription,
 		ID:                    m.ID,
 		UserID:                m.UserID,
 		PlanID:                m.PlanID,
+		ConsumptionPriority:   m.ConsumptionPriority,
+		Independent:           m.Independent,
 		StartsAt:              m.StartsAt,
 		ExpiresAt:             m.ExpiresAt,
 		Status:                status,

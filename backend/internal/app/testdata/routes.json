@@ -751,6 +751,7 @@
   "PUT /api/v1/admin/users/:id/attributes",
   "PUT /api/v1/keys/:id",
   "PUT /api/v1/plugins/:id/api/*path",
+  "PUT /api/v1/subscriptions/order",
   "PUT /api/v1/user",
   "PUT /api/v1/user/notify-email/toggle",
   "PUT /api/v1/user/password",

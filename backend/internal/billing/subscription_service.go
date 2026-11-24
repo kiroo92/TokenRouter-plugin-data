@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/TokenFlux/TokenRouter/internal/pkg/apperror"
@@ -15,9 +14,10 @@ import (
 
 // subscription_service.go issues and maintains subscription timelines, quota
 // windows and user-facing progress.
-// A user's grants for the same plan form a timeline: issuance can queue after
-// the latest future expiry, while revoke or validity changes shift later
-// slots. Persistent operations coordinate through recipient-first locks and
+// New grants start independently, including repeated purchases of the same
+// plan. Legacy queued grants retain their existing schedule and chain
+// maintenance, while independent grants keep their own dates and quotas.
+// Persistent operations coordinate through recipient-first locks and
 // selected transactions; joined owners retain rollback and publication
 // decisions. Positive payment order identities replay an existing grant before
 // term validation, whereas ordinary issuance creates a new row.
@@ -148,7 +148,7 @@ type SubscriptionService struct {
 // successor and observed Key rebinding count.
 type SelfRevokeSubscriptionResult struct {
 	RevokedSubscriptionID int64 // selected revoked grant identity
-	// ReplacementSubscriptionID is present when a pending successor was selected
+	// ReplacementSubscriptionID is present when a same-plan successor was selected
 	// for Key rebinding. Joined transaction callers still control whether these
 	// callback writes commit.
 	ReplacementSubscriptionID *int64 // optional selected successor identity
@@ -204,7 +204,7 @@ type GrantPlanTemplate struct {
 // plan-term overrides for separate grant attempts.
 type BulkAssignSubscriptionInput struct {
 	// UserIDs is consumed in supplied order without deduplication. Repeated
-	// identities can create multiple queued grants, while the result status map
+	// identities can create multiple independent grants, while the result status map
 	// retains their latest attempt.
 	UserIDs []int64 // ordered recipient attempt identities
 	PlanID  int64   // selected subscription plan identity
@@ -434,9 +434,9 @@ func (s *SubscriptionService) AssignSubscription(ctx context.Context, input *Ass
 //
 // Otherwise terms are resolved before transaction entry. Persistent issuance
 // joins or creates selected transaction work, locks the recipient user, and
-// repeats the source-order lookup before finding the latest plan grant.
+// repeats the source-order lookup before appending the new consumption rank.
 // Without persistence it runs directly with fixture dependencies. A new grant
-// starts at a future latest expiry or current service time; callbacks and
+// starts at current service time with an independent lifetime; callbacks and
 // joined transaction completion follow the mutation adapter's ownership rules.
 func (s *SubscriptionService) AssignOrExtendSubscription(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error) {
 	if input == nil {
@@ -494,12 +494,12 @@ func (s *SubscriptionService) findSourceOrderSubscription(ctx context.Context, s
 // returns that existing record and its system-time pending flag.
 //
 // The second lookup observes issuance that may have completed while this call
-// waited for the user lock. A missing order delegates latest-plan timeline
-// selection and persistence to the unlocked helper on the same context. Error
+// waited for the user lock. A missing order delegates independent issuance
+// and rank selection to the unlocked helper on the same context. Error
 // recovery and lock release remain with transaction ownership; no plan-row
 // lock is acquired for the template already selected.
 func (s *SubscriptionService) assignOrExtendSubscriptionInTx(ctx context.Context, input *AssignSubscriptionInput, template *GrantPlanTemplate) (*UserSubscription, bool, error) {
-	// Lock the recipient before the second order lookup and latest-plan read.
+	// Lock the recipient before the second order lookup and spending-order read.
 	// This serializes same-user issuance while preserving the owner's selected
 	// transaction lifetime.
 	if err := s.transactions.LockGrantUser(ctx, input.UserID); err != nil {
@@ -513,61 +513,51 @@ func (s *SubscriptionService) assignOrExtendSubscriptionInTx(ctx context.Context
 	return s.assignOrExtendSubscriptionUnlocked(ctx, input, template)
 }
 
-// assignOrExtendSubscriptionUnlocked constructs a new grant from a nonnil
-// input and selected template using service time. Any latest user-plan read
-// error is treated as no prior grant. A future latest expiry selects the new
-// start and queued flag regardless of that row's stored status; otherwise the
-// grant starts now.
+// assignOrExtendSubscriptionUnlocked creates an immediately active, independent
+// grant using the captured template. Existing purchases retain their dates and
+// quota counters. The recipient lock serializes issuance with user ordering
+// changes, so the new grant can be appended after existing consumption ranks.
 //
-// Calendar-day addition uses the chosen start's zone, then caps expiry at
-// MaxExpiresAt without moving start. Quota and source-order pointers remain
-// shared with the selected input/template. Create is followed by GetByID so
-// the result includes stored defaults and relations; a reread failure can
-// follow an applied create unless the caller transaction rolls back.
-// Persistent callers hold the recipient lock around this sequence.
+// Calendar-day addition uses the service clock's zone and caps expiry at
+// MaxExpiresAt. Source-order replay is checked by the caller before creation.
+// Create precedes hydration on the same transaction; a failed reread requires
+// the owning transaction to roll back the inserted row.
 func (s *SubscriptionService) assignOrExtendSubscriptionUnlocked(ctx context.Context, input *AssignSubscriptionInput, template *GrantPlanTemplate) (*UserSubscription, bool, error) {
 	now := s.clock.now()
-	// Treat every latest-plan read error as no prior row, so this path can
-	// attempt current-start issuance after a storage error as well as an absent
-	// grant.
-	latest, err := s.userSubRepo.GetLatestByUserIDAndPlanID(ctx, input.UserID, input.PlanID)
+	subscriptions, err := s.userSubRepo.ListByUserID(ctx, input.UserID)
 	if err != nil {
-		latest = nil
+		return nil, false, err
 	}
-
+	priority := 0
+	for _, existing := range subscriptions {
+		if existing.ConsumptionPriority >= priority {
+			priority = existing.ConsumptionPriority + 1
+		}
+	}
 	startsAt := now
-	queued := false
-	if latest != nil && latest.ExpiresAt.After(now) {
-		startsAt = latest.ExpiresAt
-		queued = true
-	}
 	expiresAt := startsAt.AddDate(0, 0, template.ValidityDays)
-	// Cap the computed end while retaining the selected queued start. This helper
-	// performs no later start-before-end validation when that start itself lies
-	// beyond the horizon.
+	// Keep issued deadlines within the shared persistence horizon; independent
+	// grants still calculate their duration from this issuance time.
 	if expiresAt.After(MaxExpiresAt) {
 		expiresAt = MaxExpiresAt
 	}
 
-	status := SubscriptionStatusActive
-	if startsAt.After(now) {
-		status = SubscriptionStatusPending
-	}
-
 	sub := &UserSubscription{
-		UserID:          input.UserID,
-		PlanID:          input.PlanID,
-		StartsAt:        startsAt,
-		ExpiresAt:       expiresAt,
-		Status:          status,
-		DailyLimitUSD:   template.DailyLimitUSD,
-		WeeklyLimitUSD:  template.WeeklyLimitUSD,
-		MonthlyLimitUSD: template.MonthlyLimitUSD,
-		AssignedAt:      now,
-		SourceOrderID:   input.SourceOrderID,
-		Notes:           input.Notes,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		UserID:              input.UserID,
+		PlanID:              input.PlanID,
+		StartsAt:            startsAt,
+		ExpiresAt:           expiresAt,
+		Status:              SubscriptionStatusActive,
+		ConsumptionPriority: priority,
+		Independent:         true,
+		DailyLimitUSD:       template.DailyLimitUSD,
+		WeeklyLimitUSD:      template.WeeklyLimitUSD,
+		MonthlyLimitUSD:     template.MonthlyLimitUSD,
+		AssignedAt:          now,
+		SourceOrderID:       input.SourceOrderID,
+		Notes:               input.Notes,
+		CreatedAt:           now,
+		UpdatedAt:           now,
 	}
 	if input.AssignedBy > 0 {
 		sub.AssignedBy = &input.AssignedBy
@@ -583,7 +573,7 @@ func (s *SubscriptionService) assignOrExtendSubscriptionUnlocked(ctx context.Con
 	if err != nil {
 		return nil, false, err
 	}
-	return created, queued, nil
+	return created, false, nil
 }
 
 // BulkAssignSubscription processes a nonnil ordered input list through
@@ -721,9 +711,9 @@ func (s *SubscriptionService) RevokeOwnExhaustedSubscription(ctx context.Context
 // initial snapshot. Window activation and conditional reset run before a
 // stored reread rechecks ownership, status and exhausted quota.
 //
-// The supplied chain selects the earliest still-pending entry starting at or
-// after the target expiry as a replacement. Delete precedes shifting later
-// entries; a selected replacement then receives preferred-Key bindings through
+// Saved consumption order selects a usable active same-plan replacement or
+// a legacy queued successor. Independent grants keep their dates; legacy
+// successors move forward after deletion. A selected replacement receives Key bindings through
 // the transaction adapter. Errors require the selected transaction owner to
 // recover preceding writes. Locks are delegated, returned IDs describe the
 // callback result, and joined callers publish cache effects after their own
@@ -771,18 +761,22 @@ func (s *SubscriptionService) revokeOwnExhaustedSubscriptionInTx(ctx context.Con
 		return nil, err
 	}
 	var replacement *UserSubscription
+	SortSubscriptions(chain)
 	for i := range chain {
 		item := chain[i]
-		if item.ID == sub.ID ||
-			item.StartsAt.Before(sub.ExpiresAt) ||
-			!item.ExpiresAt.After(now) ||
-			item.Status != SubscriptionStatusPending ||
-			item.EffectiveStatus(now) != SubscriptionStatusPending {
+		if item.ID == sub.ID || item.RefundHoldOperationID != nil || !item.ExpiresAt.After(now) {
 			continue
 		}
-		if replacement == nil || item.StartsAt.Before(replacement.StartsAt) {
+		// A replacement needs capacity in every finite window, even when only
+		// its daily quota is exhausted and a larger period still has capacity.
+		_, eligibilityErr := s.ValidateAndCheckLimits(&item)
+		activeReplacement := eligibilityErr == nil
+		legacySuccessor := !sub.Independent && !item.Independent &&
+			!item.StartsAt.Before(sub.ExpiresAt) && item.EffectiveStatus(now) == SubscriptionStatusPending
+		if activeReplacement || legacySuccessor {
 			candidate := item
 			replacement = &candidate
+			break
 		}
 	}
 
@@ -844,11 +838,11 @@ func (s *SubscriptionService) restoreSubscriptionInTx(ctx context.Context, subsc
 
 // restoreSubscriptionUnlocked rereads a retained grant and requires a deletion
 // marker before restoring it. It derives status from a shallow copy with
-// deletion cleared at service time. A nonexpired candidate must avoid strict
-// lifetime overlap with every supplied undeleted, unexpired sibling except
-// itself.
+// deletion cleared at service time. A nonexpired legacy candidate must avoid
+// lifetime overlap with other undeleted, unexpired legacy siblings.
+// Independent grants permit concurrent lifetimes and skip that timeline query.
 //
-// Expired restoration skips that timeline query. RestoredSubscriptionStatus
+// Expired restoration also skips the timeline query. RestoredSubscriptionStatus
 // derives the label after clearing deletion on a copy, then the repository
 // clears the stored marker with that selected status. Persistent callers hold
 // the recipient lock; direct fixtures can apply the write without transaction
@@ -864,7 +858,7 @@ func (s *SubscriptionService) restoreSubscriptionUnlocked(ctx context.Context, s
 
 	now := s.clock.now()
 	restoredStatus := RestoredSubscriptionStatus(sub, now)
-	if restoredStatus != SubscriptionStatusExpired {
+	if !sub.Independent && restoredStatus != SubscriptionStatusExpired {
 		chain, err := s.userSubRepo.ListByUserIDAndPlanID(ctx, sub.UserID, sub.PlanID)
 		if err != nil {
 			return nil, err
@@ -895,21 +889,24 @@ func RestoredSubscriptionStatus(sub *UserSubscription, now time.Time) string {
 }
 
 // SubscriptionRestoreWouldOverlap checks a nonnil restoration against supplied
-// undeleted siblings whose expiry is after now. Nil restoration returns false.
-// It skips the same ID, then applies strict interval comparisons, so touching
-// endpoints do not count as overlap.
+// legacy undeleted siblings whose expiry is after now. Nil or independent
+// restoration returns false. It skips independent siblings and the same ID,
+// then applies strict interval comparisons, so touching endpoints do not
+// count as overlap.
 //
 // Stored sibling status does not exclude a row from this calculation, and the
 // input order does not change the boolean result. The caller supplies its
 // user-plan chain under appropriate persistence locks; this helper performs no
 // repository or ownership query and leaves every grant unchanged.
 func SubscriptionRestoreWouldOverlap(restored *UserSubscription, chain []UserSubscription, now time.Time) bool {
-	if restored == nil {
+	// Independent grants intentionally overlap other purchases; interval overlap
+	// checks protect only the original queued timeline during restoration.
+	if restored == nil || restored.Independent {
 		return false
 	}
 	for i := range chain {
 		item := chain[i]
-		if item.ID == restored.ID || item.DeletedAt != nil || !item.ExpiresAt.After(now) {
+		if item.ID == restored.ID || item.Independent || item.DeletedAt != nil || !item.ExpiresAt.After(now) {
 			continue
 		}
 		if restored.StartsAt.Before(item.ExpiresAt) && item.StartsAt.Before(restored.ExpiresAt) {
@@ -1132,8 +1129,8 @@ func SubscriptionValidityAnchor(sub *UserSubscription, now time.Time) time.Time 
 }
 
 // ShiftLaterChain updates supplied siblings beginning at or after the anchor's
-// old expiry, skipping the anchor ID. Nil anchor or zero delta is a no-op. It
-// follows supplied order, adds the same elapsed duration to both endpoints,
+// old expiry, skipping the anchor ID and all independent grants. An independent
+// anchor, nil anchor or zero delta is a no-op. It follows supplied order, adds the same elapsed duration to both endpoints,
 // caps expiry alone, and derives status from one service-clock observation.
 //
 // Each shallow item copy is passed to repository Update, retaining optional
@@ -1143,7 +1140,9 @@ func SubscriptionValidityAnchor(sub *UserSubscription, now time.Time) time.Time 
 // capped row's end after start. Callers supply the intended locked chain and
 // recover partial persistence work.
 func (s *SubscriptionService) ShiftLaterChain(ctx context.Context, chain []UserSubscription, anchor *UserSubscription, delta time.Duration) error {
-	if delta == 0 || anchor == nil {
+	// Independent purchases own their full issued dates. Neither an independent
+	// anchor nor independent siblings participate in legacy timeline shifts.
+	if delta == 0 || anchor == nil || anchor.Independent {
 		return nil
 	}
 	now := s.clock.now()
@@ -1152,7 +1151,7 @@ func (s *SubscriptionService) ShiftLaterChain(ctx context.Context, chain []UserS
 	// recovery and their optional nested values shared.
 	for i := range chain {
 		item := chain[i]
-		if item.ID == anchor.ID {
+		if item.ID == anchor.ID || item.Independent {
 			continue
 		}
 		if item.StartsAt.Before(anchor.ExpiresAt) {
@@ -1234,7 +1233,7 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 // GetUsableSubscription returns the first quota-usable grant with its
 // maintenance flag after repository-active selection. Only the first positive
 // optional group ID activates repository-backed coverage filtering. Candidates
-// are stably ordered by expiry then start, preserving exact-time input ties.
+// follow saved consumption priority, then expiry, start and record identity.
 //
 // ValidateAndCheckLimits can locally clear stale usage before selection, so a
 // returned maintenance flag requires stored maintenance and reread before
@@ -1254,15 +1253,9 @@ func (s *SubscriptionService) GetUsableSubscription(ctx context.Context, userID 
 			return nil, false, err
 		}
 	}
-	// Order candidate grants by expiry and then start, preserving input order for
-	// exact timestamp ties. This controls which remaining quota snapshot can be
-	// selected first.
-	sort.SliceStable(subs, func(i, j int) bool {
-		if subs[i].ExpiresAt.Equal(subs[j].ExpiresAt) {
-			return subs[i].StartsAt.Before(subs[j].StartsAt)
-		}
-		return subs[i].ExpiresAt.Before(subs[j].ExpiresAt)
-	})
+	// Admission uses the same persisted order as locked settlement, so a
+	// depleted earlier grant can yield to the next applicable entitlement.
+	SortSubscriptions(subs)
 	for i := range subs {
 		sub := &subs[i]
 		needsMaintenance, validateErr := s.ValidateAndCheckLimits(sub)
@@ -1304,8 +1297,8 @@ func (s *SubscriptionService) filterSubscriptionsByGroup(ctx context.Context, su
 }
 
 // ListUserSubscriptions reads the user's grants, then normalizes eligible
-// stale window fields and display status on returned rows. These changes are
-// in-memory; reset/status helpers use separate system-time observations rather
+// stale window fields and display status, and sorts by consumption priority.
+// These changes are in-memory; reset/status helpers use separate system-time observations rather
 // than one frozen service clock.
 func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID int64) ([]UserSubscription, error) {
 	subs, err := s.userSubRepo.ListByUserID(ctx, userID)
@@ -1314,12 +1307,13 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 	}
 	normalizeExpiredWindows(subs, s.clock.calendar())
 	NormalizeSubscriptionStatus(subs)
+	SortSubscriptions(subs)
 	return subs, nil
 }
 
 // ListActiveUserSubscriptions reads repository-active grants before
-// normalizing eligible stale windows and displayed status. Returned row fields
-// change in-memory only; repository filtering and helper status/reset time
+// normalizing eligible stale windows and displayed status, then sorts by
+// consumption priority. Returned row fields change in-memory only; repository filtering and helper status/reset time
 // observations remain independent.
 func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, userID int64) ([]UserSubscription, error) {
 	subs, err := s.userSubRepo.ListActiveByUserID(ctx, userID)
@@ -1328,6 +1322,7 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 	}
 	normalizeExpiredWindows(subs, s.clock.calendar())
 	NormalizeSubscriptionStatus(subs)
+	SortSubscriptions(subs)
 	return subs, nil
 }
 

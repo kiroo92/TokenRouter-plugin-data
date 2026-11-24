@@ -43,8 +43,8 @@ type UserSubscriptionRepository interface {
 	GetByIDIncludeDeleted(ctx context.Context, id int64) (*UserSubscription, error)
 	// GetLatestByUserIDAndPlanID selects the owner's plan grant with latest
 	// expiry and then creation time. It does not require current eligibility, so
-	// issuance uses the returned lifetime to decide whether a new grant queues
-	// afterward.
+	// legacy maintenance can inspect the returned lifetime independently of
+	// current quota eligibility.
 	GetLatestByUserIDAndPlanID(ctx context.Context, userID, planID int64) (*UserSubscription, error)
 	// Update persists a nonnil grant snapshot in the selected context and fills
 	// returned metadata on success. PostgreSQL nillable setters leave nil
@@ -63,7 +63,7 @@ type UserSubscriptionRepository interface {
 	Restore(ctx context.Context, subscriptionID int64, restoredStatus string) (*UserSubscription, error)
 
 	// ListByUserID returns the owner's ordinarily visible grant rows with plan
-	// views. PostgreSQL orders expiry then creation descending; service callers
+	// views. PostgreSQL orders priority, expiry, start and ID; service callers
 	// normalize effective status and stale window display after this read.
 	ListByUserID(ctx context.Context, userID int64) ([]UserSubscription, error)
 	// ListByUserIDAndPlanID returns the ordinarily visible timeline for one
@@ -73,7 +73,7 @@ type UserSubscriptionRepository interface {
 	ListByUserIDAndPlanID(ctx context.Context, userID, planID int64) ([]UserSubscription, error)
 	// ListActiveByUserID returns grants whose start has arrived and expiry is
 	// future under current wall-clock observation. PostgreSQL accepts stored
-	// active/pending labels and orders expiry then start ascending, with quota
+	// active/pending labels and orders priority, expiry, start and ID, with quota
 	// admission left to the service.
 	ListActiveByUserID(ctx context.Context, userID int64) ([]UserSubscription, error)
 	// ListByPlanID returns a grant page for the plan with user/plan views and

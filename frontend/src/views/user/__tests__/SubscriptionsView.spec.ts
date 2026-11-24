@@ -5,7 +5,7 @@ import { createI18n } from 'vue-i18n'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SubscriptionsView from '../SubscriptionsView.vue'
 
-// SubscriptionsView.spec.ts checks plan-chain grouping and exhausted-subscription revocation
+// SubscriptionsView.spec.ts checks independent subscription cards and exhausted-subscription revocation
 // through the production page. Real stores and routing surround mocked subscription
 // requests, while a controllable confirmation shell verifies eligibility, required
 // confirmation, and duplicate-submit prevention.
@@ -15,10 +15,12 @@ import SubscriptionsView from '../SubscriptionsView.vue'
 const mockGetMySubscriptions = vi.fn()
 const mockGetActiveSubscriptions = vi.fn()
 const mockRevokeExhaustedSubscription = vi.fn()
+const mockReorderSubscriptions = vi.fn()
 
 vi.mock('@/api/subscriptions', () => ({
   default: {
     getMySubscriptions: (...args: unknown[]) => mockGetMySubscriptions(...args),
+    reorderSubscriptions: (...args: unknown[]) => mockReorderSubscriptions(...args),
     getActiveSubscriptions: (...args: unknown[]) => mockGetActiveSubscriptions(...args),
     revokeExhaustedSubscription: (...args: unknown[]) => mockRevokeExhaustedSubscription(...args),
   },
@@ -46,6 +48,13 @@ function createTestI18n() {
         userSubscriptions: {
           noActiveSubscriptions: 'No active subscriptions',
           queuedPacks: 'Queued {count}',
+          useOrder: 'Use order {order}',
+          moveUp: 'Use earlier',
+          moveDown: 'Use later',
+          buyAnother: 'Buy another',
+          orderDescription: 'Subscriptions fund requests in the order shown.',
+          orderSaved: 'Subscription order saved',
+          orderFailed: 'Failed to save order',
           startsAt: 'Starts At',
           expires: 'Expires',
           currentPackEnds: 'Current pack ends {date}',
@@ -122,11 +131,12 @@ describe('SubscriptionsView', () => {
     mockGetMySubscriptions.mockReset()
     mockGetActiveSubscriptions.mockReset().mockResolvedValue([])
     mockRevokeExhaustedSubscription.mockReset()
+    mockReorderSubscriptions.mockReset().mockResolvedValue(undefined)
   })
 
-  // Active and pending records share one plan while another plan has its own active record.
-  // The test protects one card per plan and the queued-pack indication.
-  it('groups same-plan active and pending subscriptions into one chain card', async () => {
+  // Active and pending records share one plan while another plan is also active.
+  // Every purchase must retain its own card and identity in the spending order.
+  it('shows every same-plan purchase as an independent card', async () => {
     mockGetMySubscriptions.mockResolvedValue([
       {
         id: 1,
@@ -234,9 +244,14 @@ describe('SubscriptionsView', () => {
 
     const text = wrapper.text()
     expect(mockGetMySubscriptions).toHaveBeenCalledTimes(1)
-    expect(text.match(/Plan Alpha/g)?.length).toBe(1)
+    expect(text.match(/Plan Alpha/g)?.length).toBe(2)
     expect(text.match(/Plan Beta/g)?.length).toBe(1)
-    expect(text).toMatch(/Queued 1|userSubscriptions\.queuedPacks/)
+    expect(wrapper.findAll('article')).toHaveLength(3)
+    expect(text).toContain('Use order 3')
+    await wrapper.findAll('[data-testid="subscription-move-up"]')[1].trigger('click')
+    await flushPromises()
+    expect(mockReorderSubscriptions).toHaveBeenCalledWith([2, 1, 3])
+    expect(wrapper.findAll('article')[0].text()).toContain('#2')
   })
 
   // Lower quota windows are exhausted while the highest configured window still has

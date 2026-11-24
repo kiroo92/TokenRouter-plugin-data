@@ -2821,26 +2821,34 @@ func init() {
 	usersubscription.DefaultUpdatedAt = usersubscriptionDescUpdatedAt.Default.(func() time.Time)
 	// usersubscription.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	usersubscription.UpdateDefaultUpdatedAt = usersubscriptionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// usersubscriptionDescConsumptionPriority is the schema descriptor for consumption_priority field.
+	usersubscriptionDescConsumptionPriority := usersubscriptionFields[2].Descriptor()
+	// usersubscription.DefaultConsumptionPriority holds the default value on creation for the consumption_priority field.
+	usersubscription.DefaultConsumptionPriority = usersubscriptionDescConsumptionPriority.Default.(int)
+	// usersubscriptionDescIndependent is the schema descriptor for independent field.
+	usersubscriptionDescIndependent := usersubscriptionFields[3].Descriptor()
+	// usersubscription.DefaultIndependent holds the default value on creation for the independent field.
+	usersubscription.DefaultIndependent = usersubscriptionDescIndependent.Default.(bool)
 	// usersubscriptionDescStatus is the schema descriptor for status field.
-	usersubscriptionDescStatus := usersubscriptionFields[4].Descriptor()
+	usersubscriptionDescStatus := usersubscriptionFields[6].Descriptor()
 	// usersubscription.DefaultStatus holds the default value on creation for the status field.
 	usersubscription.DefaultStatus = usersubscriptionDescStatus.Default.(string)
 	// usersubscription.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	usersubscription.StatusValidator = usersubscriptionDescStatus.Validators[0].(func(string) error)
 	// usersubscriptionDescDailyUsageUsd is the schema descriptor for daily_usage_usd field.
-	usersubscriptionDescDailyUsageUsd := usersubscriptionFields[11].Descriptor()
+	usersubscriptionDescDailyUsageUsd := usersubscriptionFields[13].Descriptor()
 	// usersubscription.DefaultDailyUsageUsd holds the default value on creation for the daily_usage_usd field.
 	usersubscription.DefaultDailyUsageUsd = usersubscriptionDescDailyUsageUsd.Default.(float64)
 	// usersubscriptionDescWeeklyUsageUsd is the schema descriptor for weekly_usage_usd field.
-	usersubscriptionDescWeeklyUsageUsd := usersubscriptionFields[12].Descriptor()
+	usersubscriptionDescWeeklyUsageUsd := usersubscriptionFields[14].Descriptor()
 	// usersubscription.DefaultWeeklyUsageUsd holds the default value on creation for the weekly_usage_usd field.
 	usersubscription.DefaultWeeklyUsageUsd = usersubscriptionDescWeeklyUsageUsd.Default.(float64)
 	// usersubscriptionDescMonthlyUsageUsd is the schema descriptor for monthly_usage_usd field.
-	usersubscriptionDescMonthlyUsageUsd := usersubscriptionFields[13].Descriptor()
+	usersubscriptionDescMonthlyUsageUsd := usersubscriptionFields[15].Descriptor()
 	// usersubscription.DefaultMonthlyUsageUsd holds the default value on creation for the monthly_usage_usd field.
 	usersubscription.DefaultMonthlyUsageUsd = usersubscriptionDescMonthlyUsageUsd.Default.(float64)
 	// usersubscriptionDescAssignedAt is the schema descriptor for assigned_at field.
-	usersubscriptionDescAssignedAt := usersubscriptionFields[15].Descriptor()
+	usersubscriptionDescAssignedAt := usersubscriptionFields[17].Descriptor()
 	// usersubscription.DefaultAssignedAt holds the default value on creation for the assigned_at field.
 	usersubscription.DefaultAssignedAt = usersubscriptionDescAssignedAt.Default.(func() time.Time)
 }

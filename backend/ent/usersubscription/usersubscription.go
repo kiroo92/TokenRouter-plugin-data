@@ -25,6 +25,10 @@ const (
 	FieldUserID = "user_id"
 	// FieldPlanID holds the string denoting the plan_id field in the database.
 	FieldPlanID = "plan_id"
+	// FieldConsumptionPriority holds the string denoting the consumption_priority field in the database.
+	FieldConsumptionPriority = "consumption_priority"
+	// FieldIndependent holds the string denoting the independent field in the database.
+	FieldIndependent = "independent"
 	// FieldStartsAt holds the string denoting the starts_at field in the database.
 	FieldStartsAt = "starts_at"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
@@ -107,6 +111,8 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldUserID,
 	FieldPlanID,
+	FieldConsumptionPriority,
+	FieldIndependent,
 	FieldStartsAt,
 	FieldExpiresAt,
 	FieldStatus,
@@ -150,6 +156,10 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultConsumptionPriority holds the default value on creation for the "consumption_priority" field.
+	DefaultConsumptionPriority int
+	// DefaultIndependent holds the default value on creation for the "independent" field.
+	DefaultIndependent bool
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -195,6 +205,16 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByPlanID orders the results by the plan_id field.
 func ByPlanID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlanID, opts...).ToFunc()
+}
+
+// ByConsumptionPriority orders the results by the consumption_priority field.
+func ByConsumptionPriority(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConsumptionPriority, opts...).ToFunc()
+}
+
+// ByIndependent orders the results by the independent field.
+func ByIndependent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIndependent, opts...).ToFunc()
 }
 
 // ByStartsAt orders the results by the starts_at field.

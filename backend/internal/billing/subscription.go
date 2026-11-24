@@ -69,6 +69,12 @@ type UserSubscription struct {
 	ID     int64 // issued grant record identifier
 	UserID int64 // paying grant owner identifier
 	PlanID int64 // issued source plan identifier
+	// ConsumptionPriority sorts automatic funding before expiry, start and ID.
+	// Lower values spend first; explicit API Key bindings retain their selected grant.
+	ConsumptionPriority int // automatic consumption order rank
+	// Independent grants start on issuance and keep their lifetime when another
+	// grant changes. False retains legacy queued-chain maintenance for existing purchases.
+	Independent bool // independent lifetime maintenance flag
 
 	// StartsAt and ExpiresAt define the half-open lifetime used by effective
 	// admission. At expiry equality the grant is expired, while exact start

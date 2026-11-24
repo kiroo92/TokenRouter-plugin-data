@@ -17,7 +17,7 @@
         </div>
       </div>
 
-      <div v-else-if="planChains.length === 0" class="card">
+      <div v-else-if="subscriptionCards.length === 0" class="card">
         <EmptyState :title="t('userSubscriptions.noActiveSubscriptions')">
           <template #icon>
             <Icon name="creditCard" class="empty-state-icon h-10 w-10" />
@@ -25,11 +25,17 @@
         </EmptyState>
       </div>
 
-      <div v-else class="grid gap-4 lg:grid-cols-2">
-        <!-- Each plan card separates identity and actions, period and group metadata, and the quota-window usage summaries. -->
+      <p
+        v-if="!loading && subscriptionCards.length"
+        class="text-sm text-gray-500 dark:text-dark-400"
+      >
+        {{ t('userSubscriptions.orderDescription') }}
+      </p>
+      <div v-if="!loading && subscriptionCards.length" class="grid gap-4 lg:grid-cols-2">
+        <!-- Each purchased subscription retains its own dates, quota, and controls even when several cards use the same plan. -->
         <article
-          v-for="chain in planChains"
-          :key="chain.plan_id"
+          v-for="(card, index) in subscriptionCards"
+          :key="card.id"
           class="card flex flex-col overflow-hidden"
         >
           <header
@@ -38,40 +44,62 @@
             <div class="min-w-0">
               <div class="flex flex-wrap items-center gap-2">
                 <h3 class="truncate text-base font-semibold text-gray-900 dark:text-dark-50">
-                  {{ chain.plan?.name || `Plan #${chain.plan_id}` }}
+                  {{ card.plan?.name || `Plan #${card.plan_id}` }}
                 </h3>
                 <span
-                  :class="['badge', chain.status === 'active' ? 'badge-success' : 'badge-warning']"
+                  :class="['badge', card.status === 'active' ? 'badge-success' : 'badge-warning']"
                 >
                   <span
                     :class="[
                       'h-1.5 w-1.5 rounded-full',
-                      chain.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500',
+                      card.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500',
                     ]"
                   />
-                  {{ t(`userSubscriptions.status.${chain.status}`) }}
+                  {{ t(`userSubscriptions.status.${card.status}`) }}
                 </span>
-                <span v-if="chain.pending_count > 0" class="badge badge-gray">
-                  <Icon name="clock" size="xs" :animate-on-hover="false" />
-                  {{ t('userSubscriptions.queuedPacks', { count: chain.pending_count }) }}
+                <span class="badge badge-gray">
+                  {{ t('userSubscriptions.useOrder', { order: index + 1 }) }}
                 </span>
+                <span class="text-xs text-gray-500 dark:text-dark-400">#{{ card.id }}</span>
               </div>
               <p
-                v-if="chain.plan?.description"
+                v-if="card.plan?.description"
                 class="mt-1 text-sm text-gray-500 dark:text-dark-400"
               >
-                {{ chain.plan.description }}
+                {{ card.plan.description }}
               </p>
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
               <button
-                v-if="canRevokeChain(chain)"
+                type="button"
+                class="btn btn-secondary btn-icon-sm"
+                data-testid="subscription-move-up"
+                :aria-label="t('userSubscriptions.moveUp')"
+                :title="t('userSubscriptions.moveUp')"
+                :disabled="index === 0 || savingOrder || revoking"
+                @click="moveSubscription(index, -1)"
+              >
+                <Icon name="arrowUp" size="sm" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-icon-sm"
+                data-testid="subscription-move-down"
+                :aria-label="t('userSubscriptions.moveDown')"
+                :title="t('userSubscriptions.moveDown')"
+                :disabled="index === subscriptionCards.length - 1 || savingOrder || revoking"
+                @click="moveSubscription(index, 1)"
+              >
+                <Icon name="arrowDown" size="sm" />
+              </button>
+              <button
+                v-if="canRevokeSubscription(card)"
                 type="button"
                 data-testid="revoke-subscription"
                 class="btn btn-danger btn-sm flex-1 sm:flex-none"
-                :disabled="revoking"
-                @click="openRevokeDialog(chain)"
+                :disabled="revoking || savingOrder"
+                @click="openRevokeDialog(card)"
               >
                 <Icon name="ban" size="sm" />
                 {{ t('userSubscriptions.revoke') }}
@@ -82,12 +110,12 @@
                 @click="
                   router.push({
                     path: '/purchase',
-                    query: { tab: 'subscription', plan: String(chain.plan_id) },
+                    query: { tab: 'subscription', plan: String(card.plan_id) },
                   })
                 "
               >
                 <Icon name="refresh" size="sm" />
-                {{ t('payment.renewNow') }}
+                {{ t('userSubscriptions.buyAnother') }}
               </button>
             </div>
           </header>
@@ -99,31 +127,21 @@
                 {{ t('userSubscriptions.startsAt') }}
               </dt>
               <dd class="mt-1 text-sm font-medium tabular-nums text-gray-900 dark:text-dark-100">
-                {{ formatDateOnly(new Date(chain.starts_at)) }}
+                {{ formatDateOnly(new Date(card.starts_at)) }}
               </dd>
             </div>
             <div class="px-4 py-3 sm:border-r sm:border-gray-100 sm:px-6 sm:dark:border-dark-700">
               <dt class="text-xs text-gray-500 dark:text-dark-400">
                 {{ t('userSubscriptions.expires') }}
               </dt>
-              <dd class="mt-1 text-sm font-medium" :class="getExpirationClass(chain.expires_at)">
-                {{ chain.expiration.primary }}
+              <dd class="mt-1 text-sm font-medium" :class="getExpirationClass(card.expires_at)">
+                {{ card.expiration.primary }}
               </dd>
               <dd
-                v-if="chain.expiration.secondary"
+                v-if="card.expiration.secondary"
                 class="mt-0.5 text-xs tabular-nums text-gray-500 dark:text-dark-400"
               >
-                {{ chain.expiration.secondary }}
-              </dd>
-              <dd
-                v-if="chain.pending_count > 0 && chain.active"
-                class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
-              >
-                {{
-                  t('userSubscriptions.currentPackEnds', {
-                    date: formatDateOnly(new Date(chain.active.expires_at)),
-                  })
-                }}
+                {{ card.expiration.secondary }}
               </dd>
             </div>
             <div
@@ -133,11 +151,11 @@
                 {{ t('userSubscriptions.groupAccess') }}
               </dt>
               <dd
-                v-if="chain.plan?.groups_restricted && chain.plan.applicable_groups?.length"
+                v-if="card.plan?.groups_restricted && card.plan.applicable_groups?.length"
                 class="mt-1 flex flex-wrap gap-1.5"
               >
                 <span
-                  v-for="group in chain.plan.applicable_groups"
+                  v-for="group in card.plan.applicable_groups"
                   :key="group.id"
                   class="rounded-compact bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-dark-700 dark:text-dark-200"
                 >
@@ -148,13 +166,13 @@
                 v-else
                 class="mt-1 text-sm font-medium"
                 :class="
-                  chain.plan?.groups_restricted
+                  card.plan?.groups_restricted
                     ? 'text-amber-700 dark:text-amber-300'
                     : 'text-gray-900 dark:text-dark-100'
                 "
               >
                 {{
-                  chain.plan?.groups_restricted
+                  card.plan?.groups_restricted
                     ? t('userSubscriptions.restrictedGroups')
                     : t('userSubscriptions.allGroups')
                 }}
@@ -163,8 +181,8 @@
           </dl>
 
           <div class="flex-1 px-4 py-4 sm:px-6">
-            <div v-if="chain.active" class="space-y-4">
-              <div v-for="window in usageWindows(chain.active)" :key="window.key">
+            <div v-if="card.active" class="space-y-4">
+              <div v-for="window in usageWindows(card.active)" :key="window.key">
                 <div class="flex items-baseline justify-between gap-3">
                   <span class="text-sm font-medium text-gray-700 dark:text-dark-100">
                     {{ window.label }}
@@ -191,7 +209,7 @@
                   class="mt-1.5 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-dark-400"
                 >
                   <span>{{
-                    window.window_start ? formatUsageWindow(chain.active, window) : ''
+                    window.window_start ? formatUsageWindow(card.active, window) : ''
                   }}</span>
                   <span class="tabular-nums">{{
                     getUsagePercentLabel(window.used, window.limit)
@@ -199,7 +217,7 @@
                 </div>
               </div>
 
-              <div v-if="usageWindows(chain.active).length === 0" class="flex items-center gap-3">
+              <div v-if="usageWindows(card.active).length === 0" class="flex items-center gap-3">
                 <div
                   class="flex h-9 w-9 shrink-0 items-center justify-center rounded-compact bg-emerald-50 text-xl text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
                 >
@@ -267,83 +285,107 @@ import {
   type RemainingDurationParts,
 } from '@/utils/subscriptionQuota'
 
-// SubscriptionsView.vue shows active and queued account subscriptions grouped into plan
-// chains. Each chain presents active usage together with the final queued expiry, allowing
-// renewal records to extend the displayed lifetime while the active record continues to own
-// quota consumption.
+// SubscriptionsView.vue displays each purchased subscription with its own
+// lifetime, quota windows, and automatic spending rank. Repeated purchases of
+// one plan remain separate cards. Up and down controls persist their order;
+// the server skips ineligible grants during automatic funding and keeps legacy
+// queued subscriptions inactive until their saved start time.
 //
-// Quota labels choose between the next window reset and subscription expiration using the
-// window duration and remaining lifetime. Exhausted active subscriptions can be revoked
-// after confirmation, with the server response determining replacement and rebound-key
-// feedback. Mutation failures and later refresh failures have separate handling because
-// reloading state cannot undo an already completed revocation.
+// Reordering and revocation disable conflicting controls until the mutation
+// finishes. The displayed order changes after persistence succeeds, then shared
+// subscription state refreshes independently. A refresh failure cannot undo a
+// successful server mutation, so it is logged separately from saving errors.
 
-// PlanChain groups active and queued subscriptions for one purchased plan in the account
-// list.
-type PlanChain = {
-  plan_id: number // Plan identity for grouping.
+// SubscriptionCard pairs one issued grant with display metadata and expiry labels.
+type SubscriptionCard = {
+  id: number // Purchased subscription identity.
+  plan_id: number // Source product identity.
   plan?: SubscriptionPlan // Available plan display metadata.
-  status: 'active' | 'pending' // Presence of an active record.
-  starts_at: string // Earliest queued start timestamp.
-  expires_at: string // Last queued expiry timestamp.
-  active?: UserSubscription // Active quota-bearing subscription record.
-  pending_count: number // Queued subscription record count.
+  status: 'active' | 'pending' // Displayed eligibility state.
+  starts_at: string // Inclusive activation start timestamp.
+  expires_at: string // Exclusive subscription expiry timestamp.
+  // active supplies usage and revocation controls only for an active grant.
+  // Queued records keep their saved start date and show no current quota usage.
+  active?: UserSubscription // Active quota-bearing grant.
+
   expiration: {
     primary: string // Relative expiration summary text.
     secondary: string // Precise expiration timestamp text.
-  } // Relative and precise expiry labels.
+  } // Derived expiry display labels.
 }
 
 // Page navigation, subscription state, translations, and configured balance formatting
-// supply plan-chain actions and their usage presentation.
+// supply independent subscription actions and their usage presentation.
 const { t } = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
 const subscriptionStore = useSubscriptionStore()
 const { formatBalanceAmount } = useBalanceDisplay()
 
-// subscriptions retains fetched plan records; loading tracks list retrieval while
+// subscriptions retains fetched subscription records; loading tracks list retrieval while
 // revokeTarget and revoking own the exhausted-subscription confirmation flow.
 const subscriptions = ref<UserSubscription[]>([])
 const loading = ref(true)
-const revokeTarget = ref<PlanChain | null>(null)
+const revokeTarget = ref<SubscriptionCard | null>(null)
 const revoking = ref(false)
+// savingOrder serializes rank changes and blocks revocation until saving completes.
+const savingOrder = ref(false)
 
-// planChains groups active and pending records by plan, orders their starts, and displays
-// the last queued expiry alongside the active subscription's usage.
-const planChains = computed<PlanChain[]>(() => {
-  const map = new Map<number, UserSubscription[]>()
-  for (const subscription of subscriptions.value) {
-    if (subscription.status !== 'active' && subscription.status !== 'pending') continue
-    const items = map.get(subscription.plan_id)
-    if (items) {
-      items.push(subscription)
-    } else {
-      map.set(subscription.plan_id, [subscription])
-    }
-  }
+// subscriptionCards keeps the server's consumption order and exposes every
+// active or queued purchase separately, including repeated purchases of one plan.
+// Cards follow the confirmed server order across repeated purchases.
+const subscriptionCards = computed<SubscriptionCard[]>(() =>
+  subscriptions.value
+    .filter((subscription) => subscription.status === 'active' || subscription.status === 'pending')
+    .map((subscription) => ({
+      id: subscription.id,
+      plan_id: subscription.plan_id,
+      plan: subscription.plan,
+      status: subscription.status as 'active' | 'pending',
+      starts_at: subscription.starts_at,
+      expires_at: subscription.expires_at,
+      active: subscription.status === 'active' ? subscription : undefined,
+      expiration: getExpirationParts(subscription.expires_at),
+    })),
+)
 
-  return [...map.entries()]
-    .map(([planId, items]) => {
-      const sorted = [...items].sort(
-        (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
-      )
-      const active = sorted.find((item) => item.status === 'active')
-      const pending = sorted.filter((item) => item.status === 'pending')
-      const last = sorted[sorted.length - 1]
-      return {
-        plan_id: planId,
-        plan: active?.plan || sorted[0]?.plan,
-        status: active ? ('active' as const) : ('pending' as const),
-        starts_at: sorted[0].starts_at,
-        expires_at: last.expires_at,
-        active,
-        pending_count: pending.length,
-        expiration: getExpirationParts(last.expires_at),
-      }
+// moveSubscription moves one eligible card by a single position and saves the
+// complete visible order. The rendered order changes after server confirmation;
+// failed saves keep the previous order and offer a localized retry message.
+// Shared active-state refresh runs after success and cannot reverse persisted ranks.
+// Controls stay disabled for the request so another reorder or revocation cannot
+// race with the pending save.
+async function moveSubscription(index: number, direction: -1 | 1) {
+  if (savingOrder.value || revoking.value) return
+  const nextIndex = index + direction
+  const ids = subscriptionCards.value.map((subscription) => subscription.id)
+  if (nextIndex < 0 || nextIndex >= ids.length) return
+  const movedID = ids[index]
+  ids[index] = ids[nextIndex]
+  ids[nextIndex] = movedID
+  savingOrder.value = true
+  try {
+    await subscriptionsAPI.reorderSubscriptions(ids)
+    // Apply confirmed ranks locally before refreshing, so a refresh failure
+    // cannot replace a completed save with a misleading mutation error.
+    const ranks = new Map(ids.map((id, rank) => [id, rank]))
+    subscriptions.value = subscriptions.value
+      .map((subscription) => ({
+        ...subscription,
+        consumption_priority: ranks.get(subscription.id) ?? subscription.consumption_priority,
+      }))
+      .sort((a, b) => (ranks.get(a.id) ?? ids.length) - (ranks.get(b.id) ?? ids.length))
+    appStore.showSuccess(t('userSubscriptions.orderSaved'))
+    await subscriptionStore.fetchActiveSubscriptions(true).catch((error) => {
+      console.error('Failed to refresh subscriptions after reordering:', error)
     })
-    .sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime())
-})
+  } catch (error) {
+    console.error('Failed to save subscription order:', error)
+    appStore.showError(t('userSubscriptions.orderFailed'))
+  } finally {
+    savingOrder.value = false
+  }
+}
 
 // loadSubscriptions replaces the list with the current account subscriptions. Failure
 // reports a localized error and retains the previously fetched records, with the loading
@@ -392,29 +434,41 @@ function usageWindows(subscription: UserSubscription) {
   ].filter((window) => window.limit != null && window.limit > 0)
 }
 
-// canRevokeChain checks whether an active subscription has exhausted its highest configured
-// quota.
-function canRevokeChain(chain: PlanChain): boolean {
-  return chain.active != null && highestQuotaExhausted(chain.active)
+// canRevokeSubscription checks whether an active grant has exhausted its
+// highest configured quota and can show the self-revocation action.
+function canRevokeSubscription(card: SubscriptionCard): boolean {
+  return card.active != null && highestQuotaExhausted(card.active)
 }
 
-// revokeDialogMessage distinguishes chains with queued replacements so confirmation
-// describes whether another subscription can take over after revocation.
+// revokeDialogMessage reports whether a same-plan successor is visible when
+// confirmation is open. The server determines which grant can replace an
+// explicitly bound subscription after checking current quota and eligibility.
 const revokeDialogMessage = computed(() => {
   const target = revokeTarget.value
   if (!target) return ''
-  if (target.pending_count > 0) {
+  if (
+    subscriptionCards.value.some(
+      (subscription) =>
+        subscription.id !== target.id &&
+        subscription.plan_id === target.plan_id &&
+        (subscription.status === 'pending' ||
+          (subscription.active &&
+            usageWindows(subscription.active).every(
+              (window) => window.limit != null && window.used < window.limit,
+            ))),
+    )
+  ) {
     return t('userSubscriptions.revokeConfirmWithReplacement')
   }
   return t('userSubscriptions.revokeConfirmWithoutReplacement')
 })
 
-// openRevokeDialog selects a chain only when its active subscription is eligible for
+// openRevokeDialog selects one card only when its active subscription is eligible for
 // revocation. Busy revocations ignore new selections, keeping the confirmation target stable
 // during the server operation.
-function openRevokeDialog(chain: PlanChain) {
-  if (revoking.value || !canRevokeChain(chain)) return
-  revokeTarget.value = chain
+function openRevokeDialog(card: SubscriptionCard) {
+  if (revoking.value || savingOrder.value || !canRevokeSubscription(card)) return
+  revokeTarget.value = card
 }
 
 // closeRevokeDialog clears the confirmation target unless a revocation is in progress.

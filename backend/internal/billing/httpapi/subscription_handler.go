@@ -13,7 +13,7 @@ import (
 )
 
 // subscription_handler.go serves current-user subscription lists, progress,
-// summaries and revocation requests.
+// summaries, spending-order changes and revocation requests.
 // User subscription views derive their recipient from authentication rather
 // than a supplied query ID. Lists enrich group labels and resolve plan display
 // text, while progress pairs a listed view with a separate service read and
@@ -27,6 +27,8 @@ import (
 // and rebound count together. Missing identity, malformed targets and service
 // failures follow their existing HTTP response paths, with authorization
 // middleware installed by the route owner.
+// Reordering derives ownership from that same identity and delegates atomic
+// rank updates to the billing service before returning success.
 
 // SubscriptionSummaryItem carries one active-view grant's window amounts and
 // optional expiry text.
@@ -111,6 +113,31 @@ func (h *SubscriptionHandler) List(c *gin.Context) {
 		out = append(out, *UserSubscriptionFromService(&subscriptions[i], locale.FromContext(c.Request.Context())))
 	}
 	response.Success(c, out)
+}
+
+// Reorder saves spending order for the authenticated user's eligible grants.
+// The service checks every submitted identity and writes ranks atomically;
+// malformed requests and foreign grants leave the previous order unchanged.
+// PUT /api/v1/subscriptions/order
+func (h *SubscriptionHandler) Reorder(c *gin.Context) {
+	subject, ok := authctx.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	var request struct {
+		SubscriptionIDs []int64 `json:"subscription_ids" binding:"required,max=1000"` // requested grant consumption order
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.BadRequest(c, "Invalid subscription order")
+		return
+	}
+	middleware2.SetAuditAction(c, "user.subscriptions.reorder")
+	if err := h.subscriptionService.ReorderSubscriptions(c.Request.Context(), subject.UserID, request.SubscriptionIDs); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"success": true})
 }
 
 // GetActive returns the authenticated user's service-selected active grant

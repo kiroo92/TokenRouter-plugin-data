@@ -257,6 +257,14 @@ export default {
   },
   // User Subscriptions Page
   userSubscriptions: {
+    useOrder: '使用顺序 {order}',
+    moveUp: '优先使用',
+    moveDown: '延后使用',
+    buyAnother: '再买一份',
+    orderDescription:
+      '自动结算的 API Key 按此顺序使用可用订阅，额度不足时接着使用下一份，剩余费用从余额扣除。指定了固定订阅的 API Key 继续使用指定订阅。每份订阅的有效期独立计算。',
+    orderSaved: '订阅使用顺序已保存',
+    orderFailed: '保存使用顺序失败，请刷新后重试',
     title: '我的订阅',
     description: '查看您的订阅计划和用量',
     noActiveSubscriptions: '暂无有效订阅',
@@ -283,7 +291,7 @@ export default {
     resetIn: '{time} 后重置',
     quotaEndsIn: '额度将在 {time} 后结束',
     windowNotActive: '等待首次使用',
-    pendingOnly: '该订阅将在当前订阅结束后生效',
+    pendingOnly: '该订阅将在上述开始时间生效',
     usageOf: '已用 {used} / {limit}',
     groupAccess: '可访问分组',
     allGroups: '全部分组',
@@ -291,9 +299,9 @@ export default {
     revoke: '撤销套餐',
     revokeTitle: '撤销已耗尽套餐',
     revokeConfirmWithReplacement:
-      '该套餐的最高层额度已耗尽。撤销后当前套餐会立即失效，下一份待生效套餐会立即启用，并自动将明确使用此订阅的 API Key 改绑到接续套餐。此操作不退款，且您无法自行恢复。',
+      '该订阅的最高层额度已耗尽。撤销后立即失效，绑定它的 API Key 将改用同套餐中可接续的订阅，其他独立订阅的有效期保持各自计算。此操作不退款，且您无法自行恢复。',
     revokeConfirmWithoutReplacement:
-      '该套餐的最高层额度已耗尽。撤销后当前套餐会立即失效，且没有待生效套餐可以接续；明确使用此订阅的 API Key 将无法继续使用订阅结算。此操作不退款，且您无法自行恢复。',
+      '该订阅的最高层额度已耗尽。撤销后立即失效；没有可接续的同套餐订阅时，绑定它的 API Key 将无法继续使用。其他自动结算的 API Key 继续按使用顺序选择可用订阅。此操作不退款，且您无法自行恢复。',
     revokeSuccessWithReplacement: '套餐已撤销，{count} 个 API Key 已改绑到接续套餐。',
     revokeSuccess: '套餐已成功撤销，改绑 API Key 数量：0。',
     revokeFailed: '撤销套餐失败，套餐状态或额度可能已变化，请刷新后重试。',
@@ -769,7 +777,7 @@ export default {
     duplicatePlan: {
       title: '重复购买提醒',
       message:
-        '您已经拥有「{plan}」套餐。重复购买同一套餐后，有效期将自动顺延，不会叠加新的独立订阅。',
+        '您已经拥有「{plan}」套餐。再次购买将立即新增一份独立订阅，额度和有效期分别计算。您可以在“我的订阅”调整使用顺序。',
       continue: '继续购买',
     },
     planFeatures: '功能特性',

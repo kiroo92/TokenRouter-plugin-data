@@ -69,9 +69,10 @@ type SubscriptionPlanGroup struct {
 // UserSubscription carries granted validity, quota observations and hydrated
 // user/plan response data.
 type UserSubscription struct {
-	ID     int64 `json:"id"`      // local granted subscription identifier
-	UserID int64 `json:"user_id"` // grant recipient user identifier
-	PlanID int64 `json:"plan_id"` // grant source plan identifier
+	ID                  int64 `json:"id"`                   // local granted subscription identifier
+	UserID              int64 `json:"user_id"`              // grant recipient user identifier
+	PlanID              int64 `json:"plan_id"`              // grant source plan identifier
+	ConsumptionPriority int   `json:"consumption_priority"` // automatic consumption order rank
 
 	// StartsAt and ExpiresAt bound the granted interval with inclusive start and
 	// exclusive expiry. Status is supplied by the service view used for this

@@ -26,6 +26,7 @@ func RegisterUserRoutes(authenticated *gin.RouterGroup, redeemEndpoint *RedeemHa
 		subscriptions.GET("/active", subscriptionEndpoint.GetActive)
 		subscriptions.GET("/progress", subscriptionEndpoint.GetProgress)
 		subscriptions.GET("/summary", subscriptionEndpoint.GetSummary)
+		subscriptions.PUT("/order", subscriptionEndpoint.Reorder)
 		subscriptions.POST("/:id/revoke", subscriptionEndpoint.Revoke)
 	}
 }

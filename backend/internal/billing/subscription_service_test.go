@@ -403,10 +403,10 @@ func TestAssignSubscriptionRejectsTemplateBeforeGrantWrite(t *testing.T) {
 	}
 }
 
-// TestAssignSubscription_SamePlanCreatesPendingChain supplies a future-ending
-// grant of the same plan. A new issuance must start at that expiry, remain
-// pending, retain its calendar-day duration and perform one create.
-func TestAssignSubscription_SamePlanCreatesPendingChain(t *testing.T) {
+// TestAssignSubscription_SamePlanCreatesIndependentGrant supplies a future-ending
+// grant of the same plan. New issuance starts immediately with its own
+// quota and duration while the existing subscription keeps its original dates.
+func TestAssignSubscription_SamePlanCreatesIndependentGrant(t *testing.T) {
 	subRepo := billingtestkit.NewSubscriptionRepository()
 	now := time.Now().UTC()
 	limit := 10.0
@@ -430,10 +430,12 @@ func TestAssignSubscription_SamePlanCreatesPendingChain(t *testing.T) {
 		Notes:         "renew",
 	})
 	require.NoError(t, err)
-	require.True(t, queued)
-	require.Equal(t, billing.SubscriptionStatusPending, created.Status)
-	require.Equal(t, existing.ExpiresAt, created.StartsAt)
-	require.Equal(t, existing.ExpiresAt.AddDate(0, 0, 30), created.ExpiresAt)
+	require.False(t, queued)
+	require.Equal(t, billing.SubscriptionStatusActive, created.Status)
+	require.True(t, created.Independent)
+	require.WithinDuration(t, now, created.StartsAt, 2*time.Second)
+	require.Equal(t, existing.ExpiresAt, subRepo.ByID[existing.ID].ExpiresAt)
+	require.Equal(t, created.StartsAt.AddDate(0, 0, 30), created.ExpiresAt)
 	require.Equal(t, 1, subRepo.CreateCalls)
 }
 
@@ -509,11 +511,10 @@ func TestAssignSubscription_ReusesExistingSourceOrderSubscription(t *testing.T) 
 	require.Equal(t, 0, subRepo.CreateCalls)
 }
 
-// TestBulkAssignSubscription_ReportsQueuedAndActive gives one recipient a
-// future-ending matching plan and another no prior grant. Both attempts
-// succeed as created, with queued/active status map entries and zero
-// failure/reuse counts.
-func TestBulkAssignSubscription_ReportsQueuedAndActive(t *testing.T) {
+// TestBulkAssignSubscription_ReportsIndependentActiveGrants gives one recipient a
+// future-ending matching plan and another no prior grant. Both receive
+// independent active grants, with zero failure and reused subscription counts.
+func TestBulkAssignSubscription_ReportsIndependentActiveGrants(t *testing.T) {
 	subRepo := billingtestkit.NewSubscriptionRepository()
 	now := time.Now().UTC()
 	limit := 10.0
@@ -539,7 +540,7 @@ func TestBulkAssignSubscription_ReportsQueuedAndActive(t *testing.T) {
 	require.Equal(t, 2, result.CreatedCount)
 	require.Equal(t, 0, result.ReusedCount)
 	require.Equal(t, 0, result.FailedCount)
-	require.Equal(t, "queued", result.Statuses[1])
+	require.Equal(t, "active", result.Statuses[1])
 	require.Equal(t, "active", result.Statuses[2])
 }
 

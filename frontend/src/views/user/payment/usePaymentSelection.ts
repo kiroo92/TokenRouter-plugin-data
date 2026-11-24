@@ -152,8 +152,8 @@ export function usePaymentSelection({ checkout, selectedPlan, errorMessage }: Se
    * that plan so submission can recognize the acknowledgement.
    */
   async function selectPlan(plan: SubscriptionPlan) {
-    // An active copy extends the same plan duration, so show its acknowledgement before
-    // applying the checkout selection.
+    // Another copy starts its own validity immediately. Confirm that purchase
+    // consequence before applying checkout selection for a plan already owned.
     if (await hasActivePlan(plan.id)) {
       openDuplicatePlanDialog(plan, () => applySelectedPlan(plan, true))
       return

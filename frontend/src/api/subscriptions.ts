@@ -3,9 +3,9 @@ import type { UserSubscription } from '@/api/subscriptions.types'
 
 /**
  * subscriptions.ts retrieves the signed-in user's subscription lists and submits
- * exhausted-subscription revocation. The revocation result exposes the revoked
- * record, any successor and rebound-key count, allowing callers to refresh
- * subscription and API-key state after the operation.
+ * spending-order changes and exhausted-subscription revocation. The revocation
+ * result exposes the revoked record, any successor and rebound-key count,
+ * allowing callers to refresh subscription and API-key state after the operation.
  */
 
 /**
@@ -51,7 +51,17 @@ export async function revokeExhaustedSubscription(
   return response.data
 }
 
+/**
+ * reorderSubscriptions saves the current user's automatic consumption order.
+ * Every ID identifies an owned eligible subscription; the server validates the
+ * complete request before persisting any rank and appends omitted grants.
+ */
+export async function reorderSubscriptions(subscriptionIds: number[]): Promise<void> {
+  await apiClient.put('/subscriptions/order', { subscription_ids: subscriptionIds })
+}
+
 export default {
+  reorderSubscriptions,
   getMySubscriptions,
   getActiveSubscriptions,
   revokeExhaustedSubscription,

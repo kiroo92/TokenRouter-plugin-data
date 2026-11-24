@@ -16,9 +16,10 @@ import (
 )
 
 // user_subscription.go defines issued subscription entitlements with their own
-// duration and quota fields. Each record can begin immediately or wait behind
-// another grant, while independent usage windows track consumption and the
-// plan relationship supplies group eligibility for later billing checks.
+// duration, quota and spending-priority fields. New assignments begin
+// independently while legacy queued grants retain their schedules. Independent
+// usage windows track consumption and the plan relationship supplies group
+// eligibility for automatic billing in the owner's saved spending order.
 
 // UserSubscription stores issued entitlement periods, quota limits, and window usage.
 type UserSubscription struct {
@@ -52,6 +53,12 @@ func (UserSubscription) Fields() []ent.Field {
 		field.Int64("user_id"),
 		// Linked product template.
 		field.Int64("plan_id"),
+		// Lower consumption priorities spend first; expiry and ID break ties.
+		// Reordering changes selection only and leaves quota and lifetime intact.
+		field.Int("consumption_priority").Default(0),
+		// Independent grants keep their own lifetime during sibling changes.
+		// False identifies legacy queued chains whose maintenance still shifts successors.
+		field.Bool("independent").Default(false),
 
 		// starts_at and expires_at define the inclusive-start, exclusive-end
 		// entitlement period. Billing derives effective status from the current
@@ -177,9 +184,9 @@ func (UserSubscription) Edges() []ent.Edge {
 }
 
 // Indexes supports owner/plan histories, effective-period scans, source-order
-// lookup, assignment attribution, and retained-row maintenance. Multiple
-// subscriptions can form a user's plan chain, with starts_at ordering the
-// individual issued periods.
+// lookup, assignment attribution, and retained-row maintenance. The partial
+// consumption index follows the payer's saved priority before expiry, start
+// and identity, while legacy timeline scans retain their start-time index.
 func (UserSubscription) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("user_id"),
@@ -189,6 +196,9 @@ func (UserSubscription) Indexes() []ent.Index {
 		index.Fields("expires_at"),
 		index.Fields("source_order_id"),
 		index.Fields("user_id", "status", "starts_at", "expires_at"),
+		index.Fields("user_id", "consumption_priority", "expires_at", "starts_at", "id").
+			StorageKey("idx_user_subscriptions_consumption_order").
+			Annotations(entsql.IndexWhere("deleted_at IS NULL")),
 		index.Fields("assigned_by"),
 		index.Fields("user_id", "plan_id", "starts_at"),
 		index.Fields("deleted_at"),

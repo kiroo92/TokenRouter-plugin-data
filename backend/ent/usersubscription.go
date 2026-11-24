@@ -29,6 +29,10 @@ type UserSubscription struct {
 	UserID int64 `json:"user_id,omitempty"`
 	// PlanID holds the value of the "plan_id" field.
 	PlanID int64 `json:"plan_id,omitempty"`
+	// ConsumptionPriority holds the value of the "consumption_priority" field.
+	ConsumptionPriority int `json:"consumption_priority,omitempty"`
+	// Independent holds the value of the "independent" field.
+	Independent bool `json:"independent,omitempty"`
 	// StartsAt holds the value of the "starts_at" field.
 	StartsAt time.Time `json:"starts_at,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
@@ -131,9 +135,11 @@ func (*UserSubscription) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case usersubscription.FieldIndependent:
+			values[i] = new(sql.NullBool)
 		case usersubscription.FieldDailyLimitUsd, usersubscription.FieldWeeklyLimitUsd, usersubscription.FieldMonthlyLimitUsd, usersubscription.FieldDailyUsageUsd, usersubscription.FieldWeeklyUsageUsd, usersubscription.FieldMonthlyUsageUsd:
 			values[i] = new(sql.NullFloat64)
-		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldPlanID, usersubscription.FieldAssignedBy, usersubscription.FieldSourceOrderID:
+		case usersubscription.FieldID, usersubscription.FieldUserID, usersubscription.FieldPlanID, usersubscription.FieldConsumptionPriority, usersubscription.FieldAssignedBy, usersubscription.FieldSourceOrderID:
 			values[i] = new(sql.NullInt64)
 		case usersubscription.FieldStatus, usersubscription.FieldRefundHoldOperationID, usersubscription.FieldNotes:
 			values[i] = new(sql.NullString)
@@ -190,6 +196,18 @@ func (_m *UserSubscription) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field plan_id", values[i])
 			} else if value.Valid {
 				_m.PlanID = value.Int64
+			}
+		case usersubscription.FieldConsumptionPriority:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field consumption_priority", values[i])
+			} else if value.Valid {
+				_m.ConsumptionPriority = int(value.Int64)
+			}
+		case usersubscription.FieldIndependent:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field independent", values[i])
+			} else if value.Valid {
+				_m.Independent = value.Bool
 			}
 		case usersubscription.FieldStartsAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -375,6 +393,12 @@ func (_m *UserSubscription) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("plan_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PlanID))
+	builder.WriteString(", ")
+	builder.WriteString("consumption_priority=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ConsumptionPriority))
+	builder.WriteString(", ")
+	builder.WriteString("independent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Independent))
 	builder.WriteString(", ")
 	builder.WriteString("starts_at=")
 	builder.WriteString(_m.StartsAt.Format(time.ANSIC))

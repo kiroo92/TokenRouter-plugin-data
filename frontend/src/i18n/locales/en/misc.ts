@@ -272,6 +272,14 @@ export default {
   },
   // User Subscriptions Page
   userSubscriptions: {
+    useOrder: 'Use order {order}',
+    moveUp: 'Use earlier',
+    moveDown: 'Use later',
+    buyAnother: 'Buy another',
+    orderDescription:
+      'API keys using automatic billing consume available subscriptions in this order, then charge any remainder to your balance. Keys pinned to one subscription keep using that subscription. Each subscription has its own expiration date.',
+    orderSaved: 'Subscription order saved',
+    orderFailed: 'Failed to save order. Refresh and try again.',
     title: 'My Subscriptions',
     description: 'View your subscription plans and usage',
     noActiveSubscriptions: 'No Active Subscriptions',
@@ -298,7 +306,7 @@ export default {
     resetIn: 'Resets in {time}',
     quotaEndsIn: 'Quota ends in {time}',
     windowNotActive: 'Awaiting first use',
-    pendingOnly: 'This plan will take effect after the current subscription ends',
+    pendingOnly: 'This subscription takes effect at its start time above',
     usageOf: '{used} of {limit}',
     groupAccess: 'Accessible groups',
     allGroups: 'All groups',
@@ -306,9 +314,9 @@ export default {
     revoke: 'Revoke plan',
     revokeTitle: 'Revoke exhausted plan',
     revokeConfirmWithReplacement:
-      'This plan has exhausted its highest quota. Revoking it will take effect immediately, activate the next queued pack, and automatically rebind keys explicitly using this subscription. This action is not refundable and cannot be undone by you.',
+      'This subscription has exhausted its highest quota. Revoking it takes effect immediately and rebinds its API keys to an available successor of the same plan. Other independent subscriptions keep their own expiration dates. This action is not refundable and cannot be undone by you.',
     revokeConfirmWithoutReplacement:
-      'This plan has exhausted its highest quota. Revoking it will end access immediately. There is no queued pack to replace it, and keys explicitly using this subscription will no longer be able to use subscription billing. This action is not refundable and cannot be undone by you.',
+      'This subscription has exhausted its highest quota. Revoking it takes effect immediately. Without a same-plan successor, keys pinned to it become unavailable. Automatic billing keys continue selecting available subscriptions in your saved order. This action is not refundable and cannot be undone by you.',
     revokeSuccessWithReplacement: 'Plan revoked and {count} API key(s) rebound to the next pack.',
     revokeSuccess: 'Plan revoked successfully. API keys rebound: 0.',
     revokeFailed:
@@ -818,7 +826,7 @@ export default {
     duplicatePlan: {
       title: 'Duplicate Purchase Notice',
       message:
-        'You already have the "{plan}" plan. Buying the same plan again will extend its expiration date automatically instead of adding a separate subscription.',
+        'You already have the "{plan}" plan. Buying again adds an independent subscription immediately, with its own quota and expiration date. You can change its spending order in My Subscriptions.',
       continue: 'Continue Purchase',
     },
     planFeatures: 'Features',

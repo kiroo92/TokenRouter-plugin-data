@@ -63114,6 +63114,9 @@ type UserSubscriptionMutation struct {
 	created_at               *time.Time
 	updated_at               *time.Time
 	deleted_at               *time.Time
+	consumption_priority     *int
+	addconsumption_priority  *int
+	independent              *bool
 	starts_at                *time.Time
 	expires_at               *time.Time
 	status                   *string
@@ -63441,6 +63444,98 @@ func (m *UserSubscriptionMutation) OldPlanID(ctx context.Context) (v int64, err 
 // ResetPlanID resets all changes to the "plan_id" field.
 func (m *UserSubscriptionMutation) ResetPlanID() {
 	m.plan = nil
+}
+
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (m *UserSubscriptionMutation) SetConsumptionPriority(i int) {
+	m.consumption_priority = &i
+	m.addconsumption_priority = nil
+}
+
+// ConsumptionPriority returns the value of the "consumption_priority" field in the mutation.
+func (m *UserSubscriptionMutation) ConsumptionPriority() (r int, exists bool) {
+	v := m.consumption_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConsumptionPriority returns the old "consumption_priority" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldConsumptionPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConsumptionPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConsumptionPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConsumptionPriority: %w", err)
+	}
+	return oldValue.ConsumptionPriority, nil
+}
+
+// AddConsumptionPriority adds i to the "consumption_priority" field.
+func (m *UserSubscriptionMutation) AddConsumptionPriority(i int) {
+	if m.addconsumption_priority != nil {
+		*m.addconsumption_priority += i
+	} else {
+		m.addconsumption_priority = &i
+	}
+}
+
+// AddedConsumptionPriority returns the value that was added to the "consumption_priority" field in this mutation.
+func (m *UserSubscriptionMutation) AddedConsumptionPriority() (r int, exists bool) {
+	v := m.addconsumption_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetConsumptionPriority resets all changes to the "consumption_priority" field.
+func (m *UserSubscriptionMutation) ResetConsumptionPriority() {
+	m.consumption_priority = nil
+	m.addconsumption_priority = nil
+}
+
+// SetIndependent sets the "independent" field.
+func (m *UserSubscriptionMutation) SetIndependent(b bool) {
+	m.independent = &b
+}
+
+// Independent returns the value of the "independent" field in the mutation.
+func (m *UserSubscriptionMutation) Independent() (r bool, exists bool) {
+	v := m.independent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIndependent returns the old "independent" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldIndependent(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIndependent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIndependent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIndependent: %w", err)
+	}
+	return oldValue.Independent, nil
+}
+
+// ResetIndependent resets all changes to the "independent" field.
+func (m *UserSubscriptionMutation) ResetIndependent() {
+	m.independent = nil
 }
 
 // SetStartsAt sets the "starts_at" field.
@@ -64511,7 +64606,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -64526,6 +64621,12 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	}
 	if m.plan != nil {
 		fields = append(fields, usersubscription.FieldPlanID)
+	}
+	if m.consumption_priority != nil {
+		fields = append(fields, usersubscription.FieldConsumptionPriority)
+	}
+	if m.independent != nil {
+		fields = append(fields, usersubscription.FieldIndependent)
 	}
 	if m.starts_at != nil {
 		fields = append(fields, usersubscription.FieldStartsAt)
@@ -64596,6 +64697,10 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.UserID()
 	case usersubscription.FieldPlanID:
 		return m.PlanID()
+	case usersubscription.FieldConsumptionPriority:
+		return m.ConsumptionPriority()
+	case usersubscription.FieldIndependent:
+		return m.Independent()
 	case usersubscription.FieldStartsAt:
 		return m.StartsAt()
 	case usersubscription.FieldExpiresAt:
@@ -64649,6 +64754,10 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldUserID(ctx)
 	case usersubscription.FieldPlanID:
 		return m.OldPlanID(ctx)
+	case usersubscription.FieldConsumptionPriority:
+		return m.OldConsumptionPriority(ctx)
+	case usersubscription.FieldIndependent:
+		return m.OldIndependent(ctx)
 	case usersubscription.FieldStartsAt:
 		return m.OldStartsAt(ctx)
 	case usersubscription.FieldExpiresAt:
@@ -64726,6 +64835,20 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPlanID(v)
+		return nil
+	case usersubscription.FieldConsumptionPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConsumptionPriority(v)
+		return nil
+	case usersubscription.FieldIndependent:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIndependent(v)
 		return nil
 	case usersubscription.FieldStartsAt:
 		v, ok := value.(time.Time)
@@ -64854,6 +64977,9 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *UserSubscriptionMutation) AddedFields() []string {
 	var fields []string
+	if m.addconsumption_priority != nil {
+		fields = append(fields, usersubscription.FieldConsumptionPriority)
+	}
 	if m.adddaily_limit_usd != nil {
 		fields = append(fields, usersubscription.FieldDailyLimitUsd)
 	}
@@ -64883,6 +65009,8 @@ func (m *UserSubscriptionMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case usersubscription.FieldConsumptionPriority:
+		return m.AddedConsumptionPriority()
 	case usersubscription.FieldDailyLimitUsd:
 		return m.AddedDailyLimitUsd()
 	case usersubscription.FieldWeeklyLimitUsd:
@@ -64906,6 +65034,13 @@ func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserSubscriptionMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case usersubscription.FieldConsumptionPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddConsumptionPriority(v)
+		return nil
 	case usersubscription.FieldDailyLimitUsd:
 		v, ok := value.(float64)
 		if !ok {
@@ -65065,6 +65200,12 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 		return nil
 	case usersubscription.FieldPlanID:
 		m.ResetPlanID()
+		return nil
+	case usersubscription.FieldConsumptionPriority:
+		m.ResetConsumptionPriority()
+		return nil
+	case usersubscription.FieldIndependent:
+		m.ResetIndependent()
 		return nil
 	case usersubscription.FieldStartsAt:
 		m.ResetStartsAt()

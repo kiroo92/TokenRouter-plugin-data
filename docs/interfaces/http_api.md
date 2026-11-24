@@ -102,11 +102,17 @@ RequestLogger
 Markdown 正文需要 JWT，并且菜单可见；管理员页面只对管理员开放；页面列表需要管理员权限。图片不需要 JWT，公开接口接受普通可见页面的 PNG、JPEG、GIF、WebP、SVG、AVIF、ICO 和 BMP 文件。请求路径和符号链接解析后的目标都检查扩展名，Markdown 正文通过带 JWT 的正文接口读取。Markdown 正文和图片的响应格式各自独立。正文里指向页面根目录之外的符号链接返回 404，根目录内的链接可以读取，正文读取上限 1 MiB。文件适配层在同一个打开的句柄上做检查和限量读取。正文按 `pages/<slug>/<locale>.md` 和 `pages/<slug>.md` 选择，`Content-Language` 报告实际语言。语言专属图片目录缺少文件时使用公共目录。静态 SPA 和 `data/public` 由 web 模块负责。
 
 <a id="subscription_self_revoke_api"></a>
+### 订阅使用顺序
+
+`GET /api/v1/subscriptions` 和 `/subscriptions/active` 按使用顺序返回独立订阅，每项带 `consumption_priority`，数值越小越先使用；相同时按到期时间、开始时间、ID 排序。同套餐的多份记录保留不同的 ID。
+
+`PUT /api/v1/subscriptions/order` 使用用户 JWT，接受 `{"subscription_ids":[23,17,42]}`，最多 1000 个 ID。提交顺序就是消费顺序，服务端把未提交的其他可排序订阅追加到末尾。只能提交本人 active 或 pending 的记录，重复、过期、暂停、已删除或他人 ID 返回 `400 SUBSCRIPTION_ORDER_INVALID`，整次修改不生效。成功返回 `data: {"success":true}`。排序只影响自动结算，固定订阅的 API Key 保持原选择。
+
 ### 订阅自助撤销
 
 用户订阅页提供一个有额度条件的自助撤销接口：
 
-- `POST /api/v1/subscriptions/:id/revoke` 需要用户 JWT。服务端只接受当前用户本人的、处于 `active`、并且最高层有限额度已经用完的订阅。成功时在事务里撤销当前记录，让同一套餐的下一份 pending 订阅提前生效，并自动改绑指定了这个订阅的 Key。
+- `POST /api/v1/subscriptions/:id/revoke` 需要用户 JWT。服务端只接受当前用户本人的、处于 `active`、并且最高层有限额度已经用完的订阅。成功时在事务里撤销当前记录，并按使用顺序将绑定它的 Key 改绑到同套餐的可用接续订阅。独立订阅保持各自日期；旧时间链继续前移 pending 接续订阅。
 - 成功响应的 `data` 是 `{ revoked_subscription_id, replacement_subscription_id, rebound_api_key_count }`；没有接续的订阅时，`replacement_subscription_id` 为 `null`，改绑数量为 `0`。
 - 订阅不属于当前用户或不存在，返回 `SUBSCRIPTION_NOT_FOUND`；不是当前 active 的记录，返回 `SUBSCRIPTION_NOT_ACTIVE`（409）；最高层额度还有剩余或套餐不限额，返回 `SUBSCRIPTION_QUOTA_NOT_EXHAUSTED`（409）。撤销不退款，用户端也没有恢复接口。
 

@@ -80,6 +80,16 @@ func PlanID(v int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldPlanID, v))
 }
 
+// ConsumptionPriority applies equality check predicate on the "consumption_priority" field. It's identical to ConsumptionPriorityEQ.
+func ConsumptionPriority(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldConsumptionPriority, v))
+}
+
+// Independent applies equality check predicate on the "independent" field. It's identical to IndependentEQ.
+func Independent(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldIndependent, v))
+}
+
 // StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
 func StartsAt(v time.Time) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldStartsAt, v))
@@ -333,6 +343,56 @@ func PlanIDIn(vs ...int64) predicate.UserSubscription {
 // PlanIDNotIn applies the NotIn predicate on the "plan_id" field.
 func PlanIDNotIn(vs ...int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldNotIn(FieldPlanID, vs...))
+}
+
+// ConsumptionPriorityEQ applies the EQ predicate on the "consumption_priority" field.
+func ConsumptionPriorityEQ(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldConsumptionPriority, v))
+}
+
+// ConsumptionPriorityNEQ applies the NEQ predicate on the "consumption_priority" field.
+func ConsumptionPriorityNEQ(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldConsumptionPriority, v))
+}
+
+// ConsumptionPriorityIn applies the In predicate on the "consumption_priority" field.
+func ConsumptionPriorityIn(vs ...int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldConsumptionPriority, vs...))
+}
+
+// ConsumptionPriorityNotIn applies the NotIn predicate on the "consumption_priority" field.
+func ConsumptionPriorityNotIn(vs ...int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldConsumptionPriority, vs...))
+}
+
+// ConsumptionPriorityGT applies the GT predicate on the "consumption_priority" field.
+func ConsumptionPriorityGT(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldConsumptionPriority, v))
+}
+
+// ConsumptionPriorityGTE applies the GTE predicate on the "consumption_priority" field.
+func ConsumptionPriorityGTE(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldConsumptionPriority, v))
+}
+
+// ConsumptionPriorityLT applies the LT predicate on the "consumption_priority" field.
+func ConsumptionPriorityLT(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldConsumptionPriority, v))
+}
+
+// ConsumptionPriorityLTE applies the LTE predicate on the "consumption_priority" field.
+func ConsumptionPriorityLTE(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldConsumptionPriority, v))
+}
+
+// IndependentEQ applies the EQ predicate on the "independent" field.
+func IndependentEQ(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldIndependent, v))
+}
+
+// IndependentNEQ applies the NEQ predicate on the "independent" field.
+func IndependentNEQ(v bool) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldIndependent, v))
 }
 
 // StartsAtEQ applies the EQ predicate on the "starts_at" field.

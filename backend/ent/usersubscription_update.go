@@ -85,6 +85,41 @@ func (_u *UserSubscriptionUpdate) SetNillablePlanID(v *int64) *UserSubscriptionU
 	return _u
 }
 
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (_u *UserSubscriptionUpdate) SetConsumptionPriority(v int) *UserSubscriptionUpdate {
+	_u.mutation.ResetConsumptionPriority()
+	_u.mutation.SetConsumptionPriority(v)
+	return _u
+}
+
+// SetNillableConsumptionPriority sets the "consumption_priority" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableConsumptionPriority(v *int) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetConsumptionPriority(*v)
+	}
+	return _u
+}
+
+// AddConsumptionPriority adds value to the "consumption_priority" field.
+func (_u *UserSubscriptionUpdate) AddConsumptionPriority(v int) *UserSubscriptionUpdate {
+	_u.mutation.AddConsumptionPriority(v)
+	return _u
+}
+
+// SetIndependent sets the "independent" field.
+func (_u *UserSubscriptionUpdate) SetIndependent(v bool) *UserSubscriptionUpdate {
+	_u.mutation.SetIndependent(v)
+	return _u
+}
+
+// SetNillableIndependent sets the "independent" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableIndependent(v *bool) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetIndependent(*v)
+	}
+	return _u
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_u *UserSubscriptionUpdate) SetStartsAt(v time.Time) *UserSubscriptionUpdate {
 	_u.mutation.SetStartsAt(v)
@@ -599,6 +634,15 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(usersubscription.FieldDeletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.ConsumptionPriority(); ok {
+		_spec.SetField(usersubscription.FieldConsumptionPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConsumptionPriority(); ok {
+		_spec.AddField(usersubscription.FieldConsumptionPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Independent(); ok {
+		_spec.SetField(usersubscription.FieldIndependent, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)
 	}
@@ -897,6 +941,41 @@ func (_u *UserSubscriptionUpdateOne) SetPlanID(v int64) *UserSubscriptionUpdateO
 func (_u *UserSubscriptionUpdateOne) SetNillablePlanID(v *int64) *UserSubscriptionUpdateOne {
 	if v != nil {
 		_u.SetPlanID(*v)
+	}
+	return _u
+}
+
+// SetConsumptionPriority sets the "consumption_priority" field.
+func (_u *UserSubscriptionUpdateOne) SetConsumptionPriority(v int) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetConsumptionPriority()
+	_u.mutation.SetConsumptionPriority(v)
+	return _u
+}
+
+// SetNillableConsumptionPriority sets the "consumption_priority" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableConsumptionPriority(v *int) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetConsumptionPriority(*v)
+	}
+	return _u
+}
+
+// AddConsumptionPriority adds value to the "consumption_priority" field.
+func (_u *UserSubscriptionUpdateOne) AddConsumptionPriority(v int) *UserSubscriptionUpdateOne {
+	_u.mutation.AddConsumptionPriority(v)
+	return _u
+}
+
+// SetIndependent sets the "independent" field.
+func (_u *UserSubscriptionUpdateOne) SetIndependent(v bool) *UserSubscriptionUpdateOne {
+	_u.mutation.SetIndependent(v)
+	return _u
+}
+
+// SetNillableIndependent sets the "independent" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableIndependent(v *bool) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetIndependent(*v)
 	}
 	return _u
 }
@@ -1444,6 +1523,15 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(usersubscription.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ConsumptionPriority(); ok {
+		_spec.SetField(usersubscription.FieldConsumptionPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedConsumptionPriority(); ok {
+		_spec.AddField(usersubscription.FieldConsumptionPriority, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Independent(); ok {
+		_spec.SetField(usersubscription.FieldIndependent, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)
