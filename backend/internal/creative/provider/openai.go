@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -30,7 +31,9 @@ import (
 // callback. That callback owns download transport and credential isolation.
 //
 // Generation uses JSON and editing uses multipart references with an optional
-// mask, while both request one output in the task format. GPT Image bodies omit the legacy
+// mask. Each uploaded file carries its validated image MIME type so upstream
+// image validators can recognize both references and masks. Both operations
+// request one output in the task format. GPT Image bodies omit the legacy
 // response_format field and DALL-E names include it. URL downloads have
 // bounded retries under the execution context, but exhausted downloads and
 // unusable successful response bodies produce nonretryable result errors so
@@ -246,9 +249,10 @@ func (e *Target) CreativeOpenAIURL(endpoint string) (string, error) { return e.O
 // Both representations carry the fixed upstream model, prompt, size mapping,
 // and one output in the saved task format. Only DALL-E names request the legacy base64
 // response_format field. Editing repeats the image form field for sources and
-// adds a supplied mask; closing the multipart writer completes its boundary
-// before bytes and content type are returned. Optional quality and background
-// are forwarded after trimming.
+// adds a supplied mask, retaining each validated image MIME in its file header.
+// Closing the multipart writer completes its boundary before bytes and content
+// type are returned. Optional quality and background are forwarded after trimming.
+// @project-doc docs/interfaces/openai_upstream.md#creative_images_requests
 func BuildCreativeOpenAIRequestBody(run creative.CreativeRun, payload creative.CreativeRunPayload, upstreamModel string) ([]byte, string, error) {
 	if run.Operation == creative.CreativeOperationGenerate {
 		bodyMap := map[string]any{
@@ -284,20 +288,14 @@ func BuildCreativeOpenAIRequestBody(run creative.CreativeRun, payload creative.C
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 	for i, image := range payload.Sources {
-		part, err := writer.CreateFormFile("image", fmt.Sprintf("source_%d.%s", i, CreativeFileExtension(image.Mime)))
-		if err != nil {
-			return nil, "", err
-		}
-		if _, err := part.Write(image.Bytes); err != nil {
+		filename := fmt.Sprintf("source_%d.%s", i, CreativeFileExtension(image.Mime))
+		if err := writeCreativeOpenAIImagePart(writer, "image", filename, image); err != nil {
 			return nil, "", err
 		}
 	}
 	if payload.Mask != nil {
-		part, err := writer.CreateFormFile("mask", "mask."+CreativeFileExtension(payload.Mask.Mime))
-		if err != nil {
-			return nil, "", err
-		}
-		if _, err := part.Write(payload.Mask.Bytes); err != nil {
+		filename := "mask." + CreativeFileExtension(payload.Mask.Mime)
+		if err := writeCreativeOpenAIImagePart(writer, "mask", filename, *payload.Mask); err != nil {
 			return nil, "", err
 		}
 	}
@@ -349,6 +347,23 @@ func BuildCreativeOpenAIRequestBody(run creative.CreativeRun, payload creative.C
 		return nil, "", err
 	}
 	return buffer.Bytes(), writer.FormDataContentType(), nil
+}
+
+// writeCreativeOpenAIImagePart writes one validated image as a multipart file.
+// Callers supply internal field names, generated filenames, and normalized image
+// MIME labels; the file header retains that label and the bytes pass unchanged.
+func writeCreativeOpenAIImagePart(writer *multipart.Writer, name, filename string, image creative.CreativeInputImage) error {
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf("form-data; name=%q; filename=%q", name, filename))
+	// CreateFormFile defaults to application/octet-stream, which loses the MIME
+	// validated at upload and can make image-only upstream endpoints reject files.
+	header.Set("Content-Type", image.Mime)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return err
+	}
+	_, err = part.Write(image.Bytes)
+	return err
 }
 
 // CreativeOpenAIUsesResponseFormat reports whether a trimmed lowercase model

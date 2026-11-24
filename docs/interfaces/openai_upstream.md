@@ -134,9 +134,12 @@ OpenAI API Key 提供商可以通过 `extra.images_url_to_b64_json=true` 开启�
 
 图片的 JSON 和 multipart 解析、上传限制，由 upstream 通用的图片输入处理；OpenAI 原生包负责 Responses 图片转换、渐进事件、终态去重和尺寸解析。API Key 和 OAuth 各自按自己的规则读取响应，通过同步的 OutputSink 交付。非流式的 OAuth 图片，在读取上游期间继续发送 JSON 空白心跳，开始写响应时才停止；断开之后的读取和计费，各分支按自己的规则处理。
 
+<a id="creative_images_requests"></a>
 ### 创作台的 Images 请求
 
 创作台的异步执行器读取同一套端点模式能力，流式上游由共享 Images 读取器汇总为最终图片。`generate` 使用 `/v1/images/generations` 的 JSON，`edit` 和 `inpaint` 使用 `/v1/images/edits` 的 multipart；默认发送 PNG、单份 `n=1`，GPT Image 2.6 可选择 GIF，并按最终模型的能力透传尺寸、质量和背景。GPT Image 模型不发送 `response_format`，只有 DALL-E 模型带 `response_format=b64_json`。inpaint 的 mask 需要是和源图同尺寸、4 MiB 以内的 PNG，透明像素表示需要重绘的区域。
+
+源图文件 part 的 `Content-Type` 使用上传校验后的 `image/png`、`image/jpeg` 或 `image/webp`，mask 使用 `image/png`；端点模式改写保留这些文件头和原始图片字节。使用通用二进制 MIME `application/octet-stream` 会使检查图片媒体类型的上游拒绝请求。
 
 兼容上游可能只返回 `data[].url`。创作台优先解析可用的 `b64_json`，没有可用的 Base64 时下载 URL 图片；这条路径一定要拿到图片的字节，不依赖普通 API 的 `images_url_to_b64_json` 开关。下载复用上面的回填下载器和提供商代理，保留签名 URL，不带生图的认证和自定义请求头，并应用相同的公网、重定向、格式、20 MiB 大小和单次 60 秒的限制。生图的响应在下载之前关闭，释放连接。
 

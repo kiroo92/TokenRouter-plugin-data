@@ -156,6 +156,102 @@ func TestBuildCreativeOpenAIRequestBody(t *testing.T) {
 	require.Contains(t, string(body), `name="background"`)
 }
 
+// TestCreativeOpenAIEditUploadMIMETypes submits reference images and an optional
+// mask through each image transport mode. The simulated upstream rejects file
+// parts whose MIME labels differ from the validated inputs, while accepted
+// requests return one image and preserve every uploaded byte.
+func TestCreativeOpenAIEditUploadMIMETypes(t *testing.T) {
+	for _, operation := range []string{creative.CreativeOperationEdit, creative.CreativeOperationInpaint} {
+		for _, mode := range []protocol.ImageStreamMode{
+			protocol.ImageModeBoth,
+			protocol.ImageModeNonStreaming,
+			protocol.ImageModeStreaming,
+		} {
+			t.Run(operation+"/"+string(mode), func(t *testing.T) {
+				payload := creative.CreativeRunPayload{
+					Prompt: "Edit the reference images",
+					Sources: []creative.CreativeInputImage{
+						{Bytes: []byte("png reference"), Mime: "image/png"},
+						{Bytes: []byte("jpeg reference"), Mime: "image/jpeg"},
+						{Bytes: []byte("webp reference"), Mime: "image/webp"},
+					},
+				}
+				if operation == creative.CreativeOperationInpaint {
+					payload.Mask = &creative.CreativeInputImage{Bytes: []byte("png mask"), Mime: "image/png"}
+				}
+				calls := 0
+				target := &Target{OpenAI: &OpenAIOptions{
+					ImageMode: func(id protocol.ProtocolID) (protocol.ImageStreamMode, error) {
+						require.Equal(t, protocol.ProtocolImagesEdits, id)
+						return mode, nil
+					},
+					Token:        func(context.Context) (string, error) { return "fixture-token", nil },
+					URL:          func(endpoint string) (string, error) { return "https://example.invalid" + endpoint, nil },
+					Prepare:      func(req *http.Request) *http.Request { return req },
+					AuthHeaders:  func(context.Context, string) (http.Header, error) { return http.Header{}, nil },
+					ApplyHeaders: func(http.Header) {},
+					Do: func(req *http.Request) (*http.Response, error) {
+						calls++
+						require.Equal(t, "/v1/images/edits", req.URL.Path)
+						reader, err := req.MultipartReader()
+						require.NoError(t, err)
+						sources, masks := 0, 0
+						for {
+							part, err := reader.NextPart()
+							if err == io.EOF {
+								break
+							}
+							require.NoError(t, err)
+							data, err := io.ReadAll(part)
+							require.NoError(t, err)
+							if part.FileName() == "" {
+								continue
+							}
+							var expected creative.CreativeInputImage
+							switch part.FormName() {
+							case "image":
+								require.Less(t, sources, len(payload.Sources))
+								expected = payload.Sources[sources]
+								sources++
+							case "mask":
+								require.NotNil(t, payload.Mask)
+								expected = *payload.Mask
+								masks++
+							default:
+								t.Fatalf("unexpected upload field %q", part.FormName())
+							}
+							if part.Header.Get("Content-Type") != expected.Mime {
+								return &http.Response{
+									StatusCode: http.StatusBadRequest,
+									Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"unsupported upload MIME type"}}`)),
+								}, nil
+							}
+							require.Equal(t, expected.Bytes, data)
+						}
+						require.Equal(t, len(payload.Sources), sources)
+						if operation == creative.CreativeOperationInpaint {
+							require.Equal(t, 1, masks)
+						} else {
+							require.Zero(t, masks)
+						}
+						return &http.Response{
+							StatusCode: http.StatusOK,
+							Header:     http.Header{"Content-Type": {"application/json"}},
+							Body:       io.NopCloser(strings.NewReader(`{"data":[{"b64_json":"aW1hZ2U="}]}`)),
+						}, nil
+					},
+				}}
+				run := creative.CreativeRun{Operation: operation, ImageSize: "1K", ResponseMIMEType: "image/png"}
+				outputs, err := target.ExecuteOpenAI(t.Context(), run, payload, "gpt-image-2.5-flare")
+				require.NoError(t, err)
+				require.Len(t, outputs, 1)
+				require.Equal(t, []byte("image"), outputs[0].Bytes)
+				require.Equal(t, 1, calls)
+			})
+		}
+	}
+}
+
 // Close records that the fixture response body was closed and returns success.
 // URL-download callbacks inspect this flag to establish cleanup ordering after
 // generation reads in the simulated exchange.
