@@ -27,7 +27,7 @@ import (
 
 // plugin_subscriptions_scenario_integration_test.go covers plugin/subscriptions.go,
 // plugin/writes.go, the PostgreSQL ledger, app/plugin_capabilities.go, and existing
-// billing subscription issuance. It verifies live templates, queued entitlements,
+// billing subscription issuance. It verifies live templates, independent entitlements,
 // authorization limits, atomic rollback, and post-commit invalidation using a real
 // database and an observable authentication-cache collaborator.
 
@@ -41,7 +41,7 @@ func (p *subscriptionInvalidationCounter) InvalidateAuthCacheByUserID(context.Co
 	p.calls.Add(1)
 }
 
-// TestPluginSubscriptionGrantsReuseTemplatesAndRollback atomically queues a plugin grant behind an existing subscription with live plan quotas.
+// TestPluginSubscriptionGrantsReuseTemplatesAndRollback issues an independent plugin grant alongside an existing subscription with live plan quotas.
 // Plan allowlisting, count limits, replay, deleted recipients, and injected ledger failure cannot create unauthorized or duplicate entitlements.
 func TestPluginSubscriptionGrantsReuseTemplatesAndRollback(t *testing.T) {
 	db := postgrescontainer.New(t)
@@ -83,10 +83,16 @@ func TestPluginSubscriptionGrantsReuseTemplatesAndRollback(t *testing.T) {
 	require.Equal(t, "subscription.max_days_per_grant", apperror.FromError(err).Metadata["limit"])
 	granted, err := service.Grant(t.Context(), binding, input)
 	require.NoError(t, err)
-	require.True(t, granted.Queued)
-	require.Equal(t, original.ExpiresAt.AddDate(0, 0, 2).Unix(), granted.ExpiresUnix)
+	require.False(t, granted.Queued)
+	require.Equal(t, now.AddDate(0, 0, 2).Unix(), granted.ExpiresUnix)
 	saved, err := records.GetByID(t.Context(), granted.ID)
 	require.NoError(t, err)
+	require.True(t, saved.Independent)
+	require.Equal(t, billing.SubscriptionStatusActive, saved.Status)
+	require.Equal(t, now, saved.StartsAt)
+	unchanged, err := records.GetByID(t.Context(), original.ID)
+	require.NoError(t, err)
+	require.Equal(t, original.ExpiresAt, unchanged.ExpiresAt)
 	require.NotNil(t, saved.DailyLimitUSD)
 	require.Equal(t, 1.5, *saved.DailyLimitUSD)
 	require.Nil(t, saved.SourceOrderID)
