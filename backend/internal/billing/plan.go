@@ -54,8 +54,13 @@ type SubscriptionPlan struct {
 	DailyLimitUSD   *float64 // USD issued daily ceiling
 	WeeklyLimitUSD  *float64 // USD issued weekly ceiling
 	MonthlyLimitUSD *float64 // USD issued monthly ceiling
-	Features        string   // resolved feature-list text
-	ProductName     string   // resolved payment product name
+	// ResetCardCount and ResetCardLimitUSD define the paid purchase benefit.
+	// Zero count disables issuance; positive counts require a finite positive
+	// cap and a finite weekly quota. Checkout snapshots retain these sale terms.
+	ResetCardCount    int     // cards included per paid subscription
+	ResetCardLimitUSD float64 // USD maximum credit per card
+	Features          string  // resolved feature-list text
+	ProductName       string  // resolved payment product name
 	// ForSale controls new subscription purchases at Checkout.ValidateSubOrder.
 	// A retained plan can still describe existing grants and historical
 	// orders when it is not currently offered for sale.

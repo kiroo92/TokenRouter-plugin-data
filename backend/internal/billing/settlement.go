@@ -814,15 +814,23 @@ func planTaskBaseAmountCapture(cmd *TaskFundsCommand) (*TaskCapturePlan, error) 
 }
 
 // CloneBillingAllocation copies an allocation, replaces its monetary AmountUSD
-// and clones present subscription and plan ID pointers. BaseAmountUSD and
-// RateMultiplier remain copied as supplied, so this helper does not rescale
+// and clones present subscription, plan and reset-card IDs plus the original
+// weekly window pointer. BaseAmountUSD and RateMultiplier remain copied as
+// supplied, so this helper does not rescale
 // pricing detail to the replacement amount.
 func CloneBillingAllocation(allocation BillingAllocation, amount float64) BillingAllocation {
 	cloned := allocation
 	cloned.AmountUSD = amount
-	// Clone optional source IDs before returning the replacement allocation,
-	// allowing callers to retain its identity pointers independently while scalar
-	// pricing detail remains as supplied.
+	// Clone source identities and the charged window before returning, so a
+	// retained capture or release snapshot cannot mutate the reservation's pointers.
+	if allocation.WeeklyWindowStart != nil {
+		start := *allocation.WeeklyWindowStart
+		cloned.WeeklyWindowStart = &start
+	}
+	if allocation.ResetCardID != nil {
+		id := *allocation.ResetCardID
+		cloned.ResetCardID = &id
+	}
 	if allocation.SubscriptionID != nil {
 		value := *allocation.SubscriptionID
 		cloned.SubscriptionID = &value

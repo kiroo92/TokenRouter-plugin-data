@@ -70,13 +70,15 @@ func (h *PlanHandler) GetPlans(c *gin.Context) {
 		// DailyLimitUSD, WeeklyLimitUSD and MonthlyLimitUSD retain the plan's
 		// optional issued-quota template pointers. Nil values are omitted in this
 		// offer, and callers leave shared amounts unchanged during serialization.
-		DailyLimitUSD   *float64 `json:"daily_limit_usd,omitempty"`   // USD
-		WeeklyLimitUSD  *float64 `json:"weekly_limit_usd,omitempty"`  // USD
-		MonthlyLimitUSD *float64 `json:"monthly_limit_usd,omitempty"` // USD
-		Features        []string `json:"features"`                    // parsed plan feature entries
-		ProductName     string   `json:"product_name"`                // selected payment product name
-		ForSale         bool     `json:"for_sale"`                    // new purchase availability flag
-		SortOrder       int      `json:"sort_order"`                  // plan offer sort order
+		DailyLimitUSD     *float64 `json:"daily_limit_usd,omitempty"`      // USD
+		WeeklyLimitUSD    *float64 `json:"weekly_limit_usd,omitempty"`     // USD
+		ResetCardCount    int      `json:"reset_card_count,omitempty"`     // included purchase card count
+		ResetCardLimitUSD float64  `json:"reset_card_limit_usd,omitempty"` // USD per-card benefit cap
+		MonthlyLimitUSD   *float64 `json:"monthly_limit_usd,omitempty"`    // USD
+		Features          []string `json:"features"`                       // parsed plan feature entries
+		ProductName       string   `json:"product_name"`                   // selected payment product name
+		ForSale           bool     `json:"for_sale"`                       // new purchase availability flag
+		SortOrder         int      `json:"sort_order"`                     // plan offer sort order
 	}
 	result := make([]planWithPlatform, 0, len(plans))
 	for _, p := range plans {
@@ -94,6 +96,8 @@ func (h *PlanHandler) GetPlans(c *gin.Context) {
 			GroupRateMultipliers: ClonePlanOfferRates(p.GroupRateMultipliers),
 			DailyLimitUSD:        p.DailyLimitUSD,
 			WeeklyLimitUSD:       p.WeeklyLimitUSD,
+			ResetCardCount:       p.ResetCardCount,
+			ResetCardLimitUSD:    p.ResetCardLimitUSD,
 			MonthlyLimitUSD:      p.MonthlyLimitUSD,
 			Features:             ParsePlanFeatures(p.Features),
 			ProductName:          p.ProductName,

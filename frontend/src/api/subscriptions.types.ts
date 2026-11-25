@@ -18,6 +18,7 @@ export interface UserSubscription {
   starts_at: string // Activation start timestamp.
   expires_at: string // Record expiration timestamp.
   status: 'active' | 'pending' | 'expired' | 'suspended' | 'revoked' // Current lifecycle state.
+  reset_credit_usd?: number // USD welfare balance expiring at the current week boundary.
   daily_limit_usd: number | null // Daily limit USD.
   weekly_limit_usd: number | null // Weekly limit USD.
   monthly_limit_usd: number | null // Monthly limit USD.

@@ -973,6 +973,8 @@ func PlanFromEntity(plan *dbent.SubscriptionPlan) *billing.SubscriptionPlan {
 		Price:                plan.Price,
 		OriginalPrice:        plan.OriginalPrice,
 		Currency:             plan.Currency,
+		ResetCardCount:       plan.ResetCardCount,
+		ResetCardLimitUSD:    plan.ResetCardLimitUsd,
 		ValidityDays:         plan.ValidityDays,
 		ValidityUnit:         plan.ValidityUnit,
 		GroupIDs:             append([]int64(nil), plan.GroupIds...),

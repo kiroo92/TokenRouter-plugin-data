@@ -175,6 +175,34 @@ func (_c *SubscriptionPlanCreate) SetGroupRateMultipliers(v map[int64]float64) *
 	return _c
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_c *SubscriptionPlanCreate) SetResetCardCount(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetResetCardCount(v)
+	return _c
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableResetCardCount(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetResetCardCount(*v)
+	}
+	return _c
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (_c *SubscriptionPlanCreate) SetResetCardLimitUsd(v float64) *SubscriptionPlanCreate {
+	_c.mutation.SetResetCardLimitUsd(v)
+	return _c
+}
+
+// SetNillableResetCardLimitUsd sets the "reset_card_limit_usd" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableResetCardLimitUsd(v *float64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetResetCardLimitUsd(*v)
+	}
+	return _c
+}
+
 // SetFeatures sets the "features" field.
 func (_c *SubscriptionPlanCreate) SetFeatures(v string) *SubscriptionPlanCreate {
 	_c.mutation.SetFeatures(v)
@@ -348,6 +376,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultGroupRateMultipliers()
 		_c.mutation.SetGroupRateMultipliers(v)
 	}
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		v := subscriptionplan.DefaultResetCardCount
+		_c.mutation.SetResetCardCount(v)
+	}
+	if _, ok := _c.mutation.ResetCardLimitUsd(); !ok {
+		v := subscriptionplan.DefaultResetCardLimitUsd
+		_c.mutation.SetResetCardLimitUsd(v)
+	}
 	if _, ok := _c.mutation.Features(); !ok {
 		v := subscriptionplan.DefaultFeatures
 		_c.mutation.SetFeatures(v)
@@ -414,6 +450,12 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.GroupRateMultipliers(); !ok {
 		return &ValidationError{Name: "group_rate_multipliers", err: errors.New(`ent: missing required field "SubscriptionPlan.group_rate_multipliers"`)}
+	}
+	if _, ok := _c.mutation.ResetCardCount(); !ok {
+		return &ValidationError{Name: "reset_card_count", err: errors.New(`ent: missing required field "SubscriptionPlan.reset_card_count"`)}
+	}
+	if _, ok := _c.mutation.ResetCardLimitUsd(); !ok {
+		return &ValidationError{Name: "reset_card_limit_usd", err: errors.New(`ent: missing required field "SubscriptionPlan.reset_card_limit_usd"`)}
 	}
 	if _, ok := _c.mutation.Features(); !ok {
 		return &ValidationError{Name: "features", err: errors.New(`ent: missing required field "SubscriptionPlan.features"`)}
@@ -516,6 +558,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.GroupRateMultipliers(); ok {
 		_spec.SetField(subscriptionplan.FieldGroupRateMultipliers, field.TypeJSON, value)
 		_node.GroupRateMultipliers = value
+	}
+	if value, ok := _c.mutation.ResetCardCount(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+		_node.ResetCardCount = value
+	}
+	if value, ok := _c.mutation.ResetCardLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardLimitUsd, field.TypeFloat64, value)
+		_node.ResetCardLimitUsd = value
 	}
 	if value, ok := _c.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
@@ -844,6 +894,42 @@ func (u *SubscriptionPlanUpsert) SetGroupRateMultipliers(v map[int64]float64) *S
 // UpdateGroupRateMultipliers sets the "group_rate_multipliers" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateGroupRateMultipliers() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldGroupRateMultipliers)
+	return u
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsert) SetResetCardCount(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldResetCardCount, v)
+	return u
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateResetCardCount() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldResetCardCount)
+	return u
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsert) AddResetCardCount(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldResetCardCount, v)
+	return u
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsert) SetResetCardLimitUsd(v float64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldResetCardLimitUsd, v)
+	return u
+}
+
+// UpdateResetCardLimitUsd sets the "reset_card_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateResetCardLimitUsd() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldResetCardLimitUsd)
+	return u
+}
+
+// AddResetCardLimitUsd adds v to the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsert) AddResetCardLimitUsd(v float64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldResetCardLimitUsd, v)
 	return u
 }
 
@@ -1214,6 +1300,48 @@ func (u *SubscriptionPlanUpsertOne) SetGroupRateMultipliers(v map[int64]float64)
 func (u *SubscriptionPlanUpsertOne) UpdateGroupRateMultipliers() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateGroupRateMultipliers()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertOne) SetResetCardCount(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertOne) AddResetCardCount(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateResetCardCount() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsertOne) SetResetCardLimitUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardLimitUsd(v)
+	})
+}
+
+// AddResetCardLimitUsd adds v to the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsertOne) AddResetCardLimitUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardLimitUsd(v)
+	})
+}
+
+// UpdateResetCardLimitUsd sets the "reset_card_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateResetCardLimitUsd() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardLimitUsd()
 	})
 }
 
@@ -1761,6 +1889,48 @@ func (u *SubscriptionPlanUpsertBulk) SetGroupRateMultipliers(v map[int64]float64
 func (u *SubscriptionPlanUpsertBulk) UpdateGroupRateMultipliers() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateGroupRateMultipliers()
+	})
+}
+
+// SetResetCardCount sets the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertBulk) SetResetCardCount(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardCount(v)
+	})
+}
+
+// AddResetCardCount adds v to the "reset_card_count" field.
+func (u *SubscriptionPlanUpsertBulk) AddResetCardCount(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardCount(v)
+	})
+}
+
+// UpdateResetCardCount sets the "reset_card_count" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateResetCardCount() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardCount()
+	})
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsertBulk) SetResetCardLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetResetCardLimitUsd(v)
+	})
+}
+
+// AddResetCardLimitUsd adds v to the "reset_card_limit_usd" field.
+func (u *SubscriptionPlanUpsertBulk) AddResetCardLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddResetCardLimitUsd(v)
+	})
+}
+
+// UpdateResetCardLimitUsd sets the "reset_card_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateResetCardLimitUsd() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateResetCardLimitUsd()
 	})
 }
 

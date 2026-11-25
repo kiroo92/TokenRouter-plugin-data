@@ -272,6 +272,25 @@ export default {
   },
   // User Subscriptions Page
   userSubscriptions: {
+    resetCards: {
+      title: 'My weekly reset cards',
+      description:
+        'Automatically included with purchases, bound exclusively to the original paid subscription. They cannot be used on another subscription, even of the same plan. Cards and remaining welfare become unavailable when the bound subscription expires. Unfreeze it before use. Restore current-week spending up to the card cap without using future allowance or moving refresh dates. Welfare credit expires at the original week boundary. Use after exhausting the week for the fullest restoration. Store and console terms apply.',
+      cap: 'Restore up to {amount} per card',
+      included: 'Includes {count} weekly reset card(s), restoring up to {amount} each',
+      use: 'Use reset card',
+      bound: 'Bound subscription #{id}',
+      noTarget:
+        'The bound subscription is unavailable. Unfreeze it first; expired or pending subscriptions cannot use the card. Cards cannot transfer to another subscription.',
+      confirm:
+        'Estimated restoration: {amount} of current-week spending. The final amount is checked when used. Original quotas and refresh dates remain intact; restored credit expires this week. No card is consumed when there is no weekly spending.',
+      success: 'Restored {amount} of current-week welfare credit',
+      failed:
+        'Unable to use this card. Check the bound subscription status, expiration and current-week spending.',
+      remaining: '{amount} weekly welfare credit remains until the original week refresh',
+      used: 'Restored {amount} to subscription #{id}',
+      status: { used: 'Used', expired: 'Expired', unavailable: 'Unavailable' },
+    },
     useOrder: 'Use order {order}',
     moveUp: 'Use earlier',
     moveDown: 'Use later',
@@ -1020,6 +1039,11 @@ export default {
       platform: 'Platform',
       rateMultiplierLabel: 'Rate',
       dailyLimit: 'Daily Limit',
+      includeResetCards: 'Include weekly reset cards with purchases',
+      resetCardCount: 'Cards per purchase',
+      resetCardLimit: 'Maximum restored per card (USD)',
+      resetCardHelp:
+        'Issued only for new paid orders; a finite weekly quota is required. Cards expire with the original subscription and retain the purchased cap. Example caps: 585 for Light and 1162.5 for Premium.',
       weeklyLimit: 'Weekly Limit',
       monthlyLimit: 'Monthly Limit',
       unlimited: 'Unlimited',

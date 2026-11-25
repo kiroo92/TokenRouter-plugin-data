@@ -124,6 +124,44 @@
         </div>
       </div>
 
+      <div class="space-y-3 rounded-control border border-gray-200 p-4 dark:border-dark-700">
+        <div class="flex items-center justify-between gap-3">
+          <label class="input-label mb-0">{{ t('payment.admin.includeResetCards') }}</label>
+          <Toggle
+            :model-value="planForm.reset_card_count > 0"
+            @update:model-value="planForm.reset_card_count = $event ? 1 : 0"
+          />
+        </div>
+        <div v-if="planForm.reset_card_count > 0" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label class="input-label">{{ t('payment.admin.resetCardCount') }}</label>
+            <input
+              v-model.number="planForm.reset_card_count"
+              data-testid="plan-reset_card_count"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              class="input"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.resetCardLimit') }}</label>
+            <input
+              v-model.number="planForm.reset_card_limit_usd"
+              data-testid="plan-reset_card_limit_usd"
+              type="number"
+              min="0.00000001"
+              step="0.01"
+              class="input"
+            />
+          </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-dark-400">{{
+          t('payment.admin.resetCardHelp')
+        }}</p>
+      </div>
+
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label class="input-label">{{ t('payment.admin.currency') }}</label>
@@ -246,7 +284,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 
 // PlanEditDialog.vue edits subscription prices, localized product copy, quota windows, and
-// group-specific subscription rates. Each opening reconstructs the draft from the selected
+// group-specific subscription rates and included purchase reset-card terms. Each opening reconstructs the draft from the selected
 // plan or new-plan defaults. Localization is copied through JSON so editing nested
 // translated content does not mutate the selected plan object. Group IDs accept the
 // current array representation and the legacy single-group field.
@@ -340,6 +378,8 @@ const planForm = reactive({
   currency: '', // purchase currency code input
   validity_days: 30, // duration count in validity_unit
   validity_unit: 'day', // configured duration unit code
+  reset_card_count: 0, // Included purchase benefit count; zero disables issuance.
+  reset_card_limit_usd: 0, // USD per-card restoration cap captured at checkout.
   // daily_limit_usd, weekly_limit_usd, and monthly_limit_usd share quota conversion rules:
   // hydration blanks nonpositive stored values, while submission retains an explicitly
   // entered numeric zero.
@@ -428,6 +468,8 @@ watch(
         currency: props.plan.currency || '',
         validity_days: props.plan.validity_days,
         validity_unit: props.plan.validity_unit || 'day',
+        reset_card_count: props.plan.reset_card_count || 0,
+        reset_card_limit_usd: props.plan.reset_card_limit_usd || 0,
         daily_limit_usd: normalizeQuotaFormValue(props.plan.daily_limit_usd),
         weekly_limit_usd: normalizeQuotaFormValue(props.plan.weekly_limit_usd),
         monthly_limit_usd: normalizeQuotaFormValue(props.plan.monthly_limit_usd),
@@ -449,6 +491,8 @@ watch(
       currency: '',
       validity_days: 30,
       validity_unit: 'day',
+      reset_card_count: 0,
+      reset_card_limit_usd: 0,
       daily_limit_usd: null,
       weekly_limit_usd: null,
       monthly_limit_usd: null,
@@ -614,6 +658,8 @@ function buildPlanPayload() {
     currency: planForm.currency.trim().toUpperCase(),
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
+    reset_card_count: Number(planForm.reset_card_count),
+    reset_card_limit_usd: Number(planForm.reset_card_limit_usd),
     daily_limit_usd: normalizeQuotaLimit(planForm.daily_limit_usd),
     weekly_limit_usd: normalizeQuotaLimit(planForm.weekly_limit_usd),
     monthly_limit_usd: normalizeQuotaLimit(planForm.monthly_limit_usd),

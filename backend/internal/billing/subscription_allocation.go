@@ -10,7 +10,8 @@ import (
 // A charge can use multiple ordered subscriptions whose quota amounts overlap
 // across daily, weekly and monthly periods. Allocation consumes the smallest
 // enabled remainder on each supplied row and advances through that row order.
-// Storage supplies already eligible, appropriately selected locked rows; these
+// Expiring reset-card credits fund a row before its original quota, without
+// advancing original counters. Storage supplies eligible locked rows; these
 // calculations do not perform ownership, status or group eligibility queries.
 //
 // Commands with positive base amount convert coverage through each
@@ -47,6 +48,9 @@ type SettlementSubscription struct {
 	DailyUsageUSD   float64  // USD
 	WeeklyUsageUSD  float64  // USD
 	MonthlyUsageUSD float64  // USD
+	// ResetCredits are separate weekly balances with one-time card identities.
+	// Spending them leaves original daily, weekly and monthly counters untouched.
+	ResetCredits []WeeklyResetCredit // expiring weekly benefit funding
 	// PlanGroupRateMultipliers remains shared when the row value is copied.
 	// Allocation reads a positive entry for the command's group and leaves this
 	// map unchanged while returning quota updates.
@@ -63,9 +67,10 @@ type SubscriptionAllocationPlan struct {
 	// Remaining: uncovered request amount USD.
 	// SubscriptionAmount: accumulated billed subscription USD.
 	Remaining, SubscriptionAmount float64
-	// Allocations contains one funding record per positive allocation in supplied
-	// row order. IncludeAllocationPricing additionally retains covered base
-	// amount and the selected multiplier in each record.
+	// Allocations contains separate card and original-quota funding records in
+	// supplied row order, retaining each consumed card's identity.
+	// IncludeAllocationPricing additionally retains covered base amount and the
+	// selected multiplier in each record.
 	Allocations []BillingAllocation // ordered selected grant funding
 	// Updates contains only rows that received positive allocations, with
 	// normalized anchors and incremented positive-limit counters. Normalized rows
@@ -315,17 +320,19 @@ func SubscriptionAllocationRequest(cmd *UsageBillingCommand) (amountUSD float64,
 // request with no rows returns preferred-insufficient, while balance or empty
 // requests return their uncovered amount directly.
 //
-// Each row is normalized before its smallest enabled remainder caps
-// allocation. In base mode, the selected rate converts remaining base USD into
+// Each row first uses its unexpired reset-card benefits. Remaining cost is
+// capped by the normalized row's smallest enabled original quota remainder.
+// In base mode, the selected rate converts remaining base USD into
 // billed quota USD, then divides the allocated billed amount back into covered
-// base USD. Every positive-limit counter receives that same billed amount,
-// because period quotas overlap rather than represent independent spending. A
+// base USD. Every positive-limit counter receives the original-quota amount;
+// reset-card funding retains its own source identity and changes no counter. A
 // zero selected rate clears the remaining base request and ends without an
 // allocation or update for that row.
 //
-// Only positively allocated rows enter Updates and Allocations, preserving
-// their order and IDs. IncludeAllocationPricing retains each coverage basis
-// and multiplier for later task settlement. The result can retain an uncovered
+// Original-quota writes enter Updates; separate card and original funding
+// records enter Allocations in source order with their identities.
+// IncludeAllocationPricing retains each coverage basis and multiplier for
+// later task settlement. The result can retain an uncovered
 // amount even in subscription mode; ordinary completion or strict reservation
 // policy is enforced by the transaction caller after this calculation.
 func AllocateSubscriptions(cmd *UsageBillingCommand, subscriptions []SettlementSubscription, now time.Time) (SubscriptionAllocationPlan, error) {
@@ -377,6 +384,35 @@ func AllocateSubscriptions(cmd *UsageBillingCommand, subscriptions []SettlementS
 			remainingBillable = remaining * rateMultiplier
 		}
 
+		// Use expiring welfare balances before original quota. Each card remains
+		// a distinct allocation so capture and cancellation refund only that benefit.
+		for _, credit := range row.ResetCredits {
+			if !credit.ExpiresAt.After(now) || credit.RemainingUSD <= 0 || remainingBillable <= 0 {
+				continue
+			}
+			allocated := math.Min(remainingBillable, credit.RemainingUSD)
+			coveredBase := allocated
+			if UsesBaseAmount(cmd) {
+				coveredBase = allocated / rateMultiplier
+			}
+			cardID, subscriptionID, planID := credit.ID, row.ID, row.PlanID
+			allocation := BillingAllocation{
+				Type: BillingAllocationTypeSubscription, AmountUSD: allocated,
+				SubscriptionID: &subscriptionID, PlanID: &planID, ResetCardID: &cardID,
+			}
+			if cmd.IncludeAllocationPricing {
+				allocation.BaseAmountUSD = coveredBase
+				allocation.RateMultiplier = rateMultiplier
+			}
+			allocations = append(allocations, allocation)
+			subscriptionAmount += allocated
+			remaining -= coveredBase
+			remainingBillable -= allocated
+		}
+		if remainingBillable <= 0 {
+			continue
+		}
+
 		available := SubscriptionAvailableAmount(
 			remainingBillable,
 			RemainingWindowAmount(row.DailyLimitUSD, row.DailyUsageUSD),
@@ -420,10 +456,11 @@ func AllocateSubscriptions(cmd *UsageBillingCommand, subscriptions []SettlementS
 		subscriptionID := row.ID
 		planID := row.PlanID
 		allocation := BillingAllocation{
-			Type:           BillingAllocationTypeSubscription,
-			AmountUSD:      allocated,
-			SubscriptionID: &subscriptionID,
-			PlanID:         &planID,
+			Type:              BillingAllocationTypeSubscription,
+			AmountUSD:         allocated,
+			SubscriptionID:    &subscriptionID,
+			PlanID:            &planID,
+			WeeklyWindowStart: row.WeeklyWindowStart,
 		}
 		if cmd.IncludeAllocationPricing {
 			allocation.BaseAmountUSD = coveredBaseAmount

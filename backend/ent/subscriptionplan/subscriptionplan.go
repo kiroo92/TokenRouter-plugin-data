@@ -40,6 +40,10 @@ const (
 	FieldGroupIds = "group_ids"
 	// FieldGroupRateMultipliers holds the string denoting the group_rate_multipliers field in the database.
 	FieldGroupRateMultipliers = "group_rate_multipliers"
+	// FieldResetCardCount holds the string denoting the reset_card_count field in the database.
+	FieldResetCardCount = "reset_card_count"
+	// FieldResetCardLimitUsd holds the string denoting the reset_card_limit_usd field in the database.
+	FieldResetCardLimitUsd = "reset_card_limit_usd"
 	// FieldFeatures holds the string denoting the features field in the database.
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
@@ -90,6 +94,8 @@ var Columns = []string{
 	FieldValidityUnit,
 	FieldGroupIds,
 	FieldGroupRateMultipliers,
+	FieldResetCardCount,
+	FieldResetCardLimitUsd,
 	FieldFeatures,
 	FieldProductName,
 	FieldForSale,
@@ -127,6 +133,10 @@ var (
 	DefaultGroupIds []int64
 	// DefaultGroupRateMultipliers holds the default value on creation for the "group_rate_multipliers" field.
 	DefaultGroupRateMultipliers func() map[int64]float64
+	// DefaultResetCardCount holds the default value on creation for the "reset_card_count" field.
+	DefaultResetCardCount int
+	// DefaultResetCardLimitUsd holds the default value on creation for the "reset_card_limit_usd" field.
+	DefaultResetCardLimitUsd float64
 	// DefaultFeatures holds the default value on creation for the "features" field.
 	DefaultFeatures string
 	// DefaultProductName holds the default value on creation for the "product_name" field.
@@ -201,6 +211,16 @@ func ByMonthlyLimitUsd(opts ...sql.OrderTermOption) OrderOption {
 // ByValidityUnit orders the results by the validity_unit field.
 func ByValidityUnit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidityUnit, opts...).ToFunc()
+}
+
+// ByResetCardCount orders the results by the reset_card_count field.
+func ByResetCardCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardCount, opts...).ToFunc()
+}
+
+// ByResetCardLimitUsd orders the results by the reset_card_limit_usd field.
+func ByResetCardLimitUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResetCardLimitUsd, opts...).ToFunc()
 }
 
 // ByFeatures orders the results by the features field.

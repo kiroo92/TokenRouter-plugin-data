@@ -137,12 +137,12 @@ func TestReserveUsageBillingBatchImageBilling_UsesBalanceRateAfterPartialSubscri
 			"id", "plan_id", "starts_at", "expires_at",
 			"daily_window_start", "weekly_window_start", "monthly_window_start",
 			"daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
-			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "group_rates",
+			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "reset_credits", "group_rates",
 		}).AddRow(
 			int64(11), int64(22), now.Add(-24*time.Hour), now.Add(30*24*time.Hour),
 			windowStart, windowStart, windowStart,
 			1.0, 1.0, 1.0,
-			0.8, 0.8, 0.8, `{"7":0.5}`,
+			0.8, 0.8, 0.8, `[]`, `{"7":0.5}`,
 		))
 	mock.ExpectExec(`(?s)UPDATE user_subscriptions\s+SET.*WHERE id = \$7`).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), 1.0, 1.0, 1.0, int64(11)).
@@ -211,12 +211,12 @@ func TestReserveUsageBillingBatchImageBilling_StrictSubscriptionRejectsPartialHo
 			"id", "plan_id", "starts_at", "expires_at",
 			"daily_window_start", "weekly_window_start", "monthly_window_start",
 			"daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
-			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "group_rates",
+			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "reset_credits", "group_rates",
 		}).AddRow(
 			preferredID, int64(22), now.Add(-24*time.Hour), now.Add(30*24*time.Hour),
 			windowStart, windowStart, windowStart,
 			1.0, 1.0, 1.0,
-			0.8, 0.8, 0.8, `{}`,
+			0.8, 0.8, 0.8, `[]`, `{}`,
 		))
 	// The planner writes capped subscription counters before the pinned
 	// reservation detects its uncovered amount. Expect owner rollback and no
@@ -268,12 +268,12 @@ func TestApplyUsageBillingEffects_StrictSubscriptionChargesOverflowToBalance(t *
 			"id", "plan_id", "starts_at", "expires_at",
 			"daily_window_start", "weekly_window_start", "monthly_window_start",
 			"daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
-			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "group_rates",
+			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "reset_credits", "group_rates",
 		}).AddRow(
 			preferredID, int64(22), now.Add(-24*time.Hour), now.Add(30*24*time.Hour),
 			windowStart, windowStart, windowStart,
 			1.0, 1.0, 1.0,
-			0.8, 0.8, 0.8, `{}`,
+			0.8, 0.8, 0.8, `[]`, `{}`,
 		))
 	// The completed request uses 0.2 subscription dollars to cover 0.4 base
 	// dollars. The remaining 0.6 base at wallet rate two becomes 1.2 dollars of
@@ -346,7 +346,7 @@ func TestApplyUsageBillingEffects_StrictSubscriptionWithoutGroupFiltersRestricte
 			"id", "plan_id", "starts_at", "expires_at",
 			"daily_window_start", "weekly_window_start", "monthly_window_start",
 			"daily_limit_usd", "weekly_limit_usd", "monthly_limit_usd",
-			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "group_rates",
+			"daily_usage_usd", "weekly_usage_usd", "monthly_usage_usd", "reset_credits", "group_rates",
 		}))
 	mock.ExpectRollback()
 

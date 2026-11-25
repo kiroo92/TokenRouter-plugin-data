@@ -32,8 +32,10 @@ import (
 //
 // Each write attempt owns a fresh SQL transaction, claims its financial
 // identity, locks the payer before subscriptions and commits funding with
-// counters and task metadata. PostgreSQL deadlocks restart the complete
-// attempt. Task allowance refunds use a savepoint so a failed refund can
+// counters and task metadata. Weekly reset cards are separate balances on the
+// selected subscription; their allocation IDs survive task capture and release.
+// PostgreSQL deadlocks restart the complete attempt. Task allowance refunds use
+// a savepoint so a failed refund can
 // retain conservative counts while completed funding remains committable.
 // Provider threshold crossings require an outbox write on that same
 // transaction; analysis logs and later notifications have separate delivery
@@ -103,6 +105,7 @@ type usageBillingSubscriptionRow struct {
 	DailyUsageUSD   float64         // recorded daily usage USD
 	WeeklyUsageUSD  float64         // recorded weekly usage USD
 	MonthlyUsageUSD float64         // recorded monthly usage USD
+	ResetCreditsRaw resetCreditList // internally generated weekly benefit JSON
 	// PlanGroupIDsRaw is loaded by the unlocked resolver for the returned minimal
 	// plan. The allocation query omits it because SQL has already applied the
 	// needed coverage filter.
@@ -307,6 +310,7 @@ func (r *SettlementStore) resolveUsableSubscriptionForGroup(ctx context.Context,
 			us.daily_usage_usd,
 			us.weekly_usage_usd,
 			us.monthly_usage_usd,
+			`+resetCreditJSON("us")+`,
 			COALESCE((
 				SELECT jsonb_agg(spg.group_id ORDER BY spg.group_id)
 				FROM subscription_plan_groups spg
@@ -373,6 +377,7 @@ func (r *SettlementStore) resolveUsableSubscriptionForGroup(ctx context.Context,
 			&row.DailyUsageUSD,
 			&row.WeeklyUsageUSD,
 			&row.MonthlyUsageUSD,
+			&row.ResetCreditsRaw,
 			&row.PlanGroupIDsRaw,
 			&row.PlanGroupRateMultipliersRaw,
 		); err != nil {
@@ -392,6 +397,7 @@ func (r *SettlementStore) resolveUsableSubscriptionForGroup(ctx context.Context,
 			windowRemaining(row.WeeklyLimitUSD, row.WeeklyUsageUSD),
 			windowRemaining(row.MonthlyLimitUSD, row.MonthlyUsageUSD),
 		)
+		available += billing.AvailableResetCredit([]billing.WeeklyResetCredit(row.ResetCreditsRaw), now)
 		if available > 0 {
 			return usageBillingSubscriptionRowToService(userID, row), nil
 		}
@@ -1196,6 +1202,7 @@ func (r *SettlementStore) incrementUsageBillingTeamMember(ctx context.Context, t
 // other plan metadata perform a separate read.
 func usageBillingSubscriptionRowToService(userID int64, row usageBillingSubscriptionRow) *billing.UserSubscription {
 	return &billing.UserSubscription{
+		ResetCredits:       []billing.WeeklyResetCredit(row.ResetCreditsRaw),
 		ID:                 row.ID,
 		UserID:             userID,
 		PlanID:             row.PlanID,
@@ -1328,6 +1335,7 @@ func allocateUsageBillingSubscriptions(ctx context.Context, tx *sql.Tx, cmd *bil
 			daily_usage_usd,
 			weekly_usage_usd,
 			monthly_usage_usd,
+			` + resetCreditJSON("user_subscriptions") + `,
 			COALESCE((
 				SELECT jsonb_object_agg(spg.group_id, spg.rate_multiplier)
 				FROM subscription_plan_groups spg
@@ -1410,6 +1418,7 @@ func allocateUsageBillingSubscriptions(ctx context.Context, tx *sql.Tx, cmd *bil
 			&row.DailyUsageUSD,
 			&row.WeeklyUsageUSD,
 			&row.MonthlyUsageUSD,
+			&row.ResetCreditsRaw,
 			&row.PlanGroupRateMultipliersRaw,
 		); err != nil {
 			_ = rows.Close()
@@ -1439,6 +1448,25 @@ func allocateUsageBillingSubscriptions(ctx context.Context, tx *sql.Tx, cmd *bil
 	for _, row := range plan.Updates {
 		if err := updateUsageBillingSubscription(ctx, tx, row.ID, row.DailyWindowStart, row.WeeklyWindowStart, row.MonthlyWindowStart, row.DailyUsageUSD, row.WeeklyUsageUSD, row.MonthlyUsageUSD); err != nil {
 			return 0, 0, nil, err
+		}
+	}
+	// Card holds and base counters commit in the same payer-locked transaction.
+	// A concurrent redemption cannot reuse a benefit balance selected here.
+	for _, allocation := range plan.Allocations {
+		if allocation.ResetCardID == nil {
+			continue
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE subscription_reset_cards SET used_usd=used_usd+$1
+		 WHERE id=$2 AND user_id=$3 AND credited_usd-used_usd >= $1`, allocation.AmountUSD, *allocation.ResetCardID, cmd.UserID)
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		if count != 1 {
+			return 0, 0, nil, billing.ErrPreferredSubscriptionInsufficient
 		}
 	}
 	return plan.Remaining, plan.SubscriptionAmount, plan.Allocations, nil
@@ -1782,9 +1810,10 @@ func releaseUsageBillingTaskBilling(ctx context.Context, tx *sql.Tx, cmd *billin
 // supplied order in the caller's transaction; zero matched rows return
 // ErrSubscriptionNotFound.
 //
-// Each current positive-limit window decreases only when its interval contains
-// ReservedAt, and usage clamps at zero. The ID/payer predicate permits refunds
-// after soft deletion or status changes, while a later window retains its own
+// A reset-card allocation refunds only that card's held balance. Original
+// quota refunds decrease a current positive-limit window only when its interval
+// contains ReservedAt, and usage clamps at zero. The ID/payer predicate permits
+// refunds after soft deletion or status changes, while a later window retains its own
 // usage. A later entry failure can follow earlier refunds, so the transaction
 // owner recovers the complete funding attempt.
 func releaseTaskSubscriptionAllocations(ctx context.Context, tx *sql.Tx, cmd *billing.TaskFundsCommand, allocations []billing.BillingAllocation) error {
@@ -1797,6 +1826,23 @@ func releaseTaskSubscriptionAllocations(ctx context.Context, tx *sql.Tx, cmd *bi
 	// their own usage when the reservation lies outside those intervals.
 	for _, allocation := range allocations {
 		if allocation.Type != billing.BillingAllocationTypeSubscription || allocation.SubscriptionID == nil || allocation.AmountUSD <= 0 {
+			continue
+		}
+		if allocation.ResetCardID != nil {
+			// Returning a held benefit affects only its card, including after expiry.
+			// Eligibility excludes expired cards, so a late refund cannot fund a new week.
+			refunded, err := tx.ExecContext(ctx, `UPDATE subscription_reset_cards SET used_usd=GREATEST(0,used_usd-$1)
+			 WHERE id=$2 AND user_id=$3 AND target_subscription_id=$4`, allocation.AmountUSD, *allocation.ResetCardID, cmd.UserID, *allocation.SubscriptionID)
+			if err != nil {
+				return err
+			}
+			count, err := refunded.RowsAffected()
+			if err != nil {
+				return err
+			}
+			if count != 1 {
+				return billing.ErrSubscriptionNotFound
+			}
 			continue
 		}
 		result, err := tx.ExecContext(ctx, `
@@ -2251,5 +2297,5 @@ func incrementUsageBillingProviderQuota(ctx context.Context, tx *sql.Tx, provide
 // and JSON rates become a new map; plan coverage filtering and eligibility
 // remain the storage caller's responsibility before allocation.
 func settlementSubscriptionSnapshot(row usageBillingSubscriptionRow) billing.SettlementSubscription {
-	return billing.SettlementSubscription{ID: row.ID, PlanID: row.PlanID, StartsAt: row.StartsAt, ExpiresAt: row.ExpiresAt, DailyWindowStart: usageBillingNullableTimePtr(row.DailyWindowStart), WeeklyWindowStart: usageBillingNullableTimePtr(row.WeeklyWindowStart), MonthlyWindowStart: usageBillingNullableTimePtr(row.MonthlyWindowStart), DailyLimitUSD: usageBillingNullableFloat64Ptr(row.DailyLimitUSD), WeeklyLimitUSD: usageBillingNullableFloat64Ptr(row.WeeklyLimitUSD), MonthlyLimitUSD: usageBillingNullableFloat64Ptr(row.MonthlyLimitUSD), DailyUsageUSD: row.DailyUsageUSD, WeeklyUsageUSD: row.WeeklyUsageUSD, MonthlyUsageUSD: row.MonthlyUsageUSD, PlanGroupRateMultipliers: parseInt64Float64JSONMap(row.PlanGroupRateMultipliersRaw)}
+	return billing.SettlementSubscription{ResetCredits: []billing.WeeklyResetCredit(row.ResetCreditsRaw), ID: row.ID, PlanID: row.PlanID, StartsAt: row.StartsAt, ExpiresAt: row.ExpiresAt, DailyWindowStart: usageBillingNullableTimePtr(row.DailyWindowStart), WeeklyWindowStart: usageBillingNullableTimePtr(row.WeeklyWindowStart), MonthlyWindowStart: usageBillingNullableTimePtr(row.MonthlyWindowStart), DailyLimitUSD: usageBillingNullableFloat64Ptr(row.DailyLimitUSD), WeeklyLimitUSD: usageBillingNullableFloat64Ptr(row.WeeklyLimitUSD), MonthlyLimitUSD: usageBillingNullableFloat64Ptr(row.MonthlyLimitUSD), DailyUsageUSD: row.DailyUsageUSD, WeeklyUsageUSD: row.WeeklyUsageUSD, MonthlyUsageUSD: row.MonthlyUsageUSD, PlanGroupRateMultipliers: parseInt64Float64JSONMap(row.PlanGroupRateMultipliersRaw)}
 }

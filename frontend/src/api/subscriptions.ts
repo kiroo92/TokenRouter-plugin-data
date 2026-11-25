@@ -60,7 +60,50 @@ export async function reorderSubscriptions(subscriptionIds: number[]): Promise<v
   await apiClient.put('/subscriptions/order', { subscription_ids: subscriptionIds })
 }
 
+/**
+ * SubscriptionResetCard describes one included purchase benefit and its history.
+ * An unused card funds only its originating paid grant before expiry; a used
+ * card retains its credited amount and original-week expiry for display.
+ */
+export interface SubscriptionResetCard {
+  id: number // Issued benefit identity.
+  plan_id: number // Exact eligible subscription plan.
+  source_subscription_id: number // Original paid subscription identity.
+  plan_name: string // Current product display name.
+  limit_usd: number // USD per-card restoration cap.
+  expires_at: string // Exclusive card expiry.
+  used_at?: string // Successful redemption timestamp.
+  target_subscription_id?: number // Redeemed originating subscription identity.
+  credited_usd: number // USD restored at redemption.
+  remaining_usd: number // USD unreserved current-week welfare balance.
+  benefit_expires_at?: string // Exclusive original-week benefit expiry.
+  status: 'available' | 'used' | 'expired' | 'unavailable' // Effective inventory state.
+}
+
+/** getResetCards retrieves the current user's automatic purchase benefits and history. */
+export async function getResetCards(): Promise<SubscriptionResetCard[]> {
+  return (await apiClient.get<SubscriptionResetCard[]>('/subscriptions/reset-cards')).data
+}
+
+/**
+ * useResetCard consumes one owned card for its originating paid subscription.
+ * Repeating the same card and target returns its original credited result;
+ * the server validates availability and settled spending before any mutation.
+ */
+export async function useResetCard(
+  cardId: number,
+  subscriptionId: number,
+): Promise<SubscriptionResetCard> {
+  return (
+    await apiClient.post<SubscriptionResetCard>(`/subscriptions/reset-cards/${cardId}/use`, {
+      subscription_id: subscriptionId,
+    })
+  ).data
+}
+
 export default {
+  getResetCards,
+  useResetCard,
   reorderSubscriptions,
   getMySubscriptions,
   getActiveSubscriptions,

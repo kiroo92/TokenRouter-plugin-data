@@ -111,6 +111,10 @@ type UserCheckoutPlan struct {
 	WeeklyLimitUSD *float64 `json:"weekly_limit_usd"` // weekly USD quota
 	//
 	MonthlyLimitUSD *float64 `json:"monthly_limit_usd"` // monthly USD quota
+	// Purchase benefits are displayed before payment and captured by checkout.
+	// Zero count omits both labels from older plans without included cards.
+	ResetCardCount    int     `json:"reset_card_count,omitempty"`     // included purchase card quantity
+	ResetCardLimitUSD float64 `json:"reset_card_limit_usd,omitempty"` // USD captured per-card cap
 	// ModelScopes is the optional supported-model display collection in this
 	// shape. GetCheckoutInfo does not populate it, so its empty value is omitted
 	// from JSON.
@@ -407,6 +411,8 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			DailyLimitUSD:        p.DailyLimitUSD,
 			WeeklyLimitUSD:       p.WeeklyLimitUSD,
 			MonthlyLimitUSD:      p.MonthlyLimitUSD,
+			ResetCardCount:       p.ResetCardCount,
+			ResetCardLimitUSD:    p.ResetCardLimitUSD,
 			Name:                 p.Name,
 			Description:          p.Description,
 			Price:                p.Price,

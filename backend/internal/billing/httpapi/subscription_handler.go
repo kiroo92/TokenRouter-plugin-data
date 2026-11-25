@@ -140,6 +140,53 @@ func (h *SubscriptionHandler) Reorder(c *gin.Context) {
 	response.Success(c, gin.H{"success": true})
 }
 
+// ListResetCards returns the signed-in payer's purchase-card inventory.
+// Ownership comes from authentication; storage derives availability from the
+// source grant, expiry and one-time use while retaining redeemed card history.
+func (h *SubscriptionHandler) ListResetCards(c *gin.Context) {
+	subject, ok := authctx.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	cards, err := h.subscriptionService.ListResetCards(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cards)
+}
+
+// UseResetCard redeems a purchase benefit only against its originating grant.
+// The service checks that the submitted ID matches the card's bound subscription
+// under the payer lock; replay returns the saved result without another credit.
+func (h *SubscriptionHandler) UseResetCard(c *gin.Context) {
+	subject, ok := authctx.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not found in context")
+		return
+	}
+	cardID, err := strconv.ParseInt(c.Param("card_id"), 10, 64)
+	if err != nil || cardID <= 0 {
+		response.BadRequest(c, "Invalid reset card ID")
+		return
+	}
+	var request struct {
+		SubscriptionID int64 `json:"subscription_id" binding:"required,gt=0"` // originating paid grant identity
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	middleware2.SetAuditAction(c, "user.subscriptions.reset-card.use")
+	card, err := h.subscriptionService.UseResetCard(c.Request.Context(), subject.UserID, cardID, request.SubscriptionID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, card)
+}
+
 // GetActive returns the authenticated user's service-selected active grant
 // views with enriched plan groups. Missing identity yields unauthorized;
 // service errors use shared mapping, and the user DTO resolves

@@ -1,5 +1,7 @@
 package billing
 
+import "time"
+
 // allocation.go defines funding-source allocations and the plan terms captured
 // at checkout.
 // An allocation records the funding source and the USD amount charged or
@@ -16,12 +18,17 @@ const (
 
 // SubscriptionPlanSnapshot retains checkout plan display, price, duration, and quota terms.
 type SubscriptionPlanSnapshot struct {
-	Locale       string  `json:"locale,omitempty"`       // checkout display language
-	ProductName  string  `json:"product_name,omitempty"` // checkout product display name
-	Name         string  `json:"name"`                   // checkout plan display name
-	Price        float64 `json:"price"`                  // checkout plan base price
-	Currency     string  `json:"currency,omitempty"`     // checkout plan price currency
-	ValidityDays int     `json:"validity_days"`          // issued validity in days
+	Locale      string  `json:"locale,omitempty"`       // checkout display language
+	ProductName string  `json:"product_name,omitempty"` // checkout product display name
+	Name        string  `json:"name"`                   // checkout plan display name
+	Price       float64 `json:"price"`                  // checkout plan base price
+	Currency    string  `json:"currency,omitempty"`     // checkout plan price currency
+	// ResetCardCount and ResetCardLimitUSD retain purchased benefit terms.
+	// Fulfillment uses this snapshot after plan edits; a zero count skips
+	// automatic card issuance for both old and newly disabled purchase terms.
+	ResetCardCount    int     `json:"reset_card_count,omitempty"`     // paid purchase benefit quantity
+	ResetCardLimitUSD float64 `json:"reset_card_limit_usd,omitempty"` // USD per-card benefit cap
+	ValidityDays      int     `json:"validity_days"`                  // issued validity in days
 	// DailyLimitUSD, WeeklyLimitUSD, and MonthlyLimitUSD retain the quota
 	// ceilings used when subscription fulfillment issues an entitlement.
 	// Consumers treat absent or nonpositive ceilings as unlimited for the
@@ -50,5 +57,12 @@ type BillingAllocation struct {
 	// written by settlement omit both identifiers and retain their balance
 	// source and amount.
 	SubscriptionID *int64 `json:"subscription_id,omitempty"` // funded user subscription
-	PlanID         *int64 `json:"plan_id,omitempty"`         // funded subscription plan
+	// ResetCardID selects a separate weekly benefit balance instead of the
+	// subscription's original counters. Capture and release retain this identity.
+	ResetCardID *int64 `json:"reset_card_id,omitempty"` // weekly benefit source identity
+	// WeeklyWindowStart identifies the original weekly counter charged by this
+	// allocation. Redemption uses it to exclude unsettled holds across creation
+	// and reservation boundaries; older snapshots omit it and retain time fallback.
+	WeeklyWindowStart *time.Time `json:"weekly_window_start,omitempty"` // original charged weekly quota anchor
+	PlanID            *int64     `json:"plan_id,omitempty"`             // funded subscription plan
 }

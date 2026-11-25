@@ -75,6 +75,9 @@ type UserSubscription struct {
 	// Independent grants start on issuance and keep their lifetime when another
 	// grant changes. False retains legacy queued-chain maintenance for existing purchases.
 	Independent bool // independent lifetime maintenance flag
+	// ResetCredits are current weekly benefits loaded separately from base usage.
+	// They expire at the original week boundary and do not consume future quotas.
+	ResetCredits []WeeklyResetCredit // additional current-week funding balances
 
 	// StartsAt and ExpiresAt define the half-open lifetime used by effective
 	// admission. At expiry equality the grant is expired, while exact start
@@ -573,17 +576,18 @@ func (s *UserSubscription) RemainingMonthlyUSD() *float64 {
 }
 
 // AvailableQuotaUSD returns the smallest enabled day/week/month remainder for
-// a nonnil grant. Absent and nonpositive windows contribute nil, and an
-// entirely unlimited grant returns zero from MinRemainingWindowAmount. Display
-// callers use SubscriptionRemainingForDisplay to distinguish unlimited from
-// exhausted.
+// a nonnil grant plus its unexpired welfare balance. Absent and nonpositive
+// windows contribute nil; an entirely unlimited original quota contributes
+// zero to this calculation. Display callers use SubscriptionRemainingForDisplay
+// to distinguish unlimited original quota from exhaustion.
 //
 // Each enabled counter can include the same charge, so the strictest remainder
-// limits one request and the amounts are not added. This method does not
+// limits original funding. Unexpired reset-card welfare is added separately
+// because it consumes none of those original ceilings. This method does not
 // normalize stale windows or check effective status; callers supply their
 // current eligible or display view before interpreting the result.
 func (s *UserSubscription) AvailableQuotaUSD() float64 {
-	return MinRemainingWindowAmount(
+	return AvailableResetCredit(s.ResetCredits, time.Now()) + MinRemainingWindowAmount(
 		s.RemainingDailyUSD(),
 		s.RemainingWeeklyUSD(),
 		s.RemainingMonthlyUSD(),
@@ -594,7 +598,8 @@ func (s *UserSubscription) AvailableQuotaUSD() float64 {
 // finite quota for self-revocation. Monthly takes precedence over weekly and
 // then daily; the first qualifying limit decides, so an available outer limit
 // blocks lower exhausted windows. Nil grants or no qualifying limit return
-// false.
+// false. A remaining reset-card benefit also prevents quota-exhausted
+// self-revocation until that current-week welfare is used or expires.
 //
 // Zero, negative, NaN and infinite limits do not qualify here. Usage at the
 // selected limit is already exhausted, while status, ownership and window
@@ -603,7 +608,7 @@ func (s *UserSubscription) AvailableQuotaUSD() float64 {
 // amount.
 // @project-doc docs/domains/payments_and_entitlements.md#subscription_self_revoke
 func (s *UserSubscription) HighestQuotaExhausted() bool {
-	if s == nil {
+	if s == nil || AvailableResetCredit(s.ResetCredits, time.Now()) > 0 {
 		return false
 	}
 	for _, quota := range []struct {

@@ -247,6 +247,8 @@ Grok 的媒体、搜索和 Voice 有各自的计价维度：
 
 billing 根据锁定的订阅快照生成有序的分配和窗口更新，PostgreSQL 适配层负责锁顺序、SQL 更新、outbox 和提交。外层的身份或权益事务通过明确传入的 Ent Tx 复用连接；加入的一方只执行写入，提交、回滚和发布缓存、通知都由外层负责。
 
+每份可用订阅的购买重置卡福利先于该订阅的原额度消费。福利分配仍属于 `subscription`，额外的 `reset_card_id` 指向独立福利余额；这部分不累计原日、周、月额度。原额度不足后的余额策略、分组倍率和 Key 限额保持各自规则。任务捕获和释放按保存的卡 ID 退回福利，过期余额不会跨周恢复。规则见[购买附送重置卡](payments_and_entitlements.md#subscription_weekly_reset_cards)。
+
 使用记录的 `request_id` 表示本地请求，`billing_key` 表示资金操作的去重值。资金命令、账本和去重表中已有的 `request_id` 字段保存计费键。下文的结算去重步骤使用计费键，跨版本规则见[请求 ID 与请求查询](../operations/request_lookup.md#billing_identity)。
 
 标准结算流程：

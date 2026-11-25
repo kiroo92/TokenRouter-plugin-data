@@ -199,6 +199,17 @@
                       </span>
                     </div>
                   </div>
+                  <p
+                    v-if="(selectedPlan.reset_card_count || 0) > 0"
+                    class="mt-4 text-sm text-primary-600 dark:text-primary-400"
+                  >
+                    {{
+                      t('userSubscriptions.resetCards.included', {
+                        count: selectedPlan.reset_card_count,
+                        amount: formatBalanceAmount(selectedPlan.reset_card_limit_usd || 0),
+                      })
+                    }}
+                  </p>
                   <dl
                     class="mt-4 flex flex-wrap items-baseline gap-x-8 gap-y-2 border-t border-gray-100 pt-3 dark:border-dark-700"
                   >

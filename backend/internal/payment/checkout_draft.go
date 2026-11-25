@@ -69,20 +69,23 @@ func BuildCheckoutDraft(req CreateOrderRequest, user *Buyer, plan *SubscriptionP
 	}
 	// Record the sale terms used for this order before later plan edits. The day
 	// conversion fixes duration for fulfillment, and Clone subsequently detaches
-	// the quota pointers.
+	// the quota pointers. Included reset-card quantity and cap are also captured
+	// so later product edits cannot change benefits for an existing order.
 	if plan != nil {
 		id := plan.ID
 		order.PlanID = &id
 		order.PlanSnapshot = billing.SubscriptionPlanSnapshot{
-			Locale:          locale.Negotiate(req.Locale, locale.Default()),
-			ProductName:     plan.ProductName,
-			Name:            plan.Name,
-			Price:           plan.Price,
-			Currency:        plan.Currency,
-			ValidityDays:    billing.ComputeValidityDays(plan.ValidityDays, plan.ValidityUnit),
-			DailyLimitUSD:   plan.DailyLimitUSD,
-			WeeklyLimitUSD:  plan.WeeklyLimitUSD,
-			MonthlyLimitUSD: plan.MonthlyLimitUSD,
+			Locale:            locale.Negotiate(req.Locale, locale.Default()),
+			ProductName:       plan.ProductName,
+			Name:              plan.Name,
+			Price:             plan.Price,
+			Currency:          plan.Currency,
+			ValidityDays:      billing.ComputeValidityDays(plan.ValidityDays, plan.ValidityUnit),
+			DailyLimitUSD:     plan.DailyLimitUSD,
+			WeeklyLimitUSD:    plan.WeeklyLimitUSD,
+			ResetCardCount:    plan.ResetCardCount,
+			ResetCardLimitUSD: plan.ResetCardLimitUSD,
+			MonthlyLimitUSD:   plan.MonthlyLimitUSD,
 		}
 		if strings.TrimSpace(order.PlanSnapshot.Currency) == "" &&
 			NormalizeSubscriptionUSDToCNYRate(cfg.SubscriptionUSDToCNYRate) > 0 &&

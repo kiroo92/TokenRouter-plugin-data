@@ -44,3 +44,17 @@ func TestBuildCheckoutDraftCapturesSubscriptionPriceCurrency(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildCheckoutDraftCapturesResetCards fixes purchase benefits before the
+// editable plan changes. Fulfillment must issue the quantity and per-card cap
+// purchased by this order, including the fractional Premium benefit amount.
+func TestBuildCheckoutDraftCapturesResetCards(t *testing.T) {
+	plan := &SubscriptionPlan{ID: 2, Name: "Premium", Price: 10, ValidityDays: 30, ResetCardCount: 2, ResetCardLimitUSD: 1162.5}
+	draft := BuildCheckoutDraft(CreateOrderRequest{OrderType: OrderTypeSubscription, PaymentType: TypeStripe},
+		&Buyer{ID: 1}, plan, &PaymentConfig{}, 10, 10, FeeBreakdown{PayAmount: 10}, nil)
+	plan.ResetCardCount = 0
+	plan.ResetCardLimitUSD = 0
+	if draft.Order.PlanSnapshot.ResetCardCount != 2 || draft.Order.PlanSnapshot.ResetCardLimitUSD != 1162.5 {
+		t.Fatal("checkout did not retain the purchased reset-card benefit")
+	}
+}

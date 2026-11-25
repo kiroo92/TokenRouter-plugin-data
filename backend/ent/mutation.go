@@ -41976,46 +41976,50 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *int64
-	localization           *billing.PlanLocalization
-	name                   *string
-	description            *string
-	price                  *float64
-	addprice               *float64
-	original_price         *float64
-	addoriginal_price      *float64
-	currency               *string
-	validity_days          *int
-	addvalidity_days       *int
-	daily_limit_usd        *float64
-	adddaily_limit_usd     *float64
-	weekly_limit_usd       *float64
-	addweekly_limit_usd    *float64
-	monthly_limit_usd      *float64
-	addmonthly_limit_usd   *float64
-	validity_unit          *string
-	group_ids              *[]int64
-	appendgroup_ids        []int64
-	group_rate_multipliers *map[int64]float64
-	features               *string
-	product_name           *string
-	for_sale               *bool
-	sort_order             *int
-	addsort_order          *int
-	created_at             *time.Time
-	updated_at             *time.Time
-	clearedFields          map[string]struct{}
-	subscriptions          map[int64]struct{}
-	removedsubscriptions   map[int64]struct{}
-	clearedsubscriptions   bool
-	redeem_codes           map[int64]struct{}
-	removedredeem_codes    map[int64]struct{}
-	clearedredeem_codes    bool
-	done                   bool
-	oldValue               func(context.Context) (*SubscriptionPlan, error)
-	predicates             []predicate.SubscriptionPlan
+	op                      Op
+	typ                     string
+	id                      *int64
+	localization            *billing.PlanLocalization
+	name                    *string
+	description             *string
+	price                   *float64
+	addprice                *float64
+	original_price          *float64
+	addoriginal_price       *float64
+	currency                *string
+	validity_days           *int
+	addvalidity_days        *int
+	daily_limit_usd         *float64
+	adddaily_limit_usd      *float64
+	weekly_limit_usd        *float64
+	addweekly_limit_usd     *float64
+	monthly_limit_usd       *float64
+	addmonthly_limit_usd    *float64
+	validity_unit           *string
+	group_ids               *[]int64
+	appendgroup_ids         []int64
+	group_rate_multipliers  *map[int64]float64
+	reset_card_count        *int
+	addreset_card_count     *int
+	reset_card_limit_usd    *float64
+	addreset_card_limit_usd *float64
+	features                *string
+	product_name            *string
+	for_sale                *bool
+	sort_order              *int
+	addsort_order           *int
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	subscriptions           map[int64]struct{}
+	removedsubscriptions    map[int64]struct{}
+	clearedsubscriptions    bool
+	redeem_codes            map[int64]struct{}
+	removedredeem_codes     map[int64]struct{}
+	clearedredeem_codes     bool
+	done                    bool
+	oldValue                func(context.Context) (*SubscriptionPlan, error)
+	predicates              []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -42788,6 +42792,118 @@ func (m *SubscriptionPlanMutation) ResetGroupRateMultipliers() {
 	m.group_rate_multipliers = nil
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (m *SubscriptionPlanMutation) SetResetCardCount(i int) {
+	m.reset_card_count = &i
+	m.addreset_card_count = nil
+}
+
+// ResetCardCount returns the value of the "reset_card_count" field in the mutation.
+func (m *SubscriptionPlanMutation) ResetCardCount() (r int, exists bool) {
+	v := m.reset_card_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResetCardCount returns the old "reset_card_count" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldResetCardCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResetCardCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResetCardCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResetCardCount: %w", err)
+	}
+	return oldValue.ResetCardCount, nil
+}
+
+// AddResetCardCount adds i to the "reset_card_count" field.
+func (m *SubscriptionPlanMutation) AddResetCardCount(i int) {
+	if m.addreset_card_count != nil {
+		*m.addreset_card_count += i
+	} else {
+		m.addreset_card_count = &i
+	}
+}
+
+// AddedResetCardCount returns the value that was added to the "reset_card_count" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedResetCardCount() (r int, exists bool) {
+	v := m.addreset_card_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetResetCardCount resets all changes to the "reset_card_count" field.
+func (m *SubscriptionPlanMutation) ResetResetCardCount() {
+	m.reset_card_count = nil
+	m.addreset_card_count = nil
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (m *SubscriptionPlanMutation) SetResetCardLimitUsd(f float64) {
+	m.reset_card_limit_usd = &f
+	m.addreset_card_limit_usd = nil
+}
+
+// ResetCardLimitUsd returns the value of the "reset_card_limit_usd" field in the mutation.
+func (m *SubscriptionPlanMutation) ResetCardLimitUsd() (r float64, exists bool) {
+	v := m.reset_card_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResetCardLimitUsd returns the old "reset_card_limit_usd" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldResetCardLimitUsd(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResetCardLimitUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResetCardLimitUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResetCardLimitUsd: %w", err)
+	}
+	return oldValue.ResetCardLimitUsd, nil
+}
+
+// AddResetCardLimitUsd adds f to the "reset_card_limit_usd" field.
+func (m *SubscriptionPlanMutation) AddResetCardLimitUsd(f float64) {
+	if m.addreset_card_limit_usd != nil {
+		*m.addreset_card_limit_usd += f
+	} else {
+		m.addreset_card_limit_usd = &f
+	}
+}
+
+// AddedResetCardLimitUsd returns the value that was added to the "reset_card_limit_usd" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedResetCardLimitUsd() (r float64, exists bool) {
+	v := m.addreset_card_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetResetCardLimitUsd resets all changes to the "reset_card_limit_usd" field.
+func (m *SubscriptionPlanMutation) ResetResetCardLimitUsd() {
+	m.reset_card_limit_usd = nil
+	m.addreset_card_limit_usd = nil
+}
+
 // SetFeatures sets the "features" field.
 func (m *SubscriptionPlanMutation) SetFeatures(s string) {
 	m.features = &s
@@ -43166,7 +43282,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 21)
 	if m.localization != nil {
 		fields = append(fields, subscriptionplan.FieldLocalization)
 	}
@@ -43205,6 +43321,12 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.group_rate_multipliers != nil {
 		fields = append(fields, subscriptionplan.FieldGroupRateMultipliers)
+	}
+	if m.reset_card_count != nil {
+		fields = append(fields, subscriptionplan.FieldResetCardCount)
+	}
+	if m.reset_card_limit_usd != nil {
+		fields = append(fields, subscriptionplan.FieldResetCardLimitUsd)
 	}
 	if m.features != nil {
 		fields = append(fields, subscriptionplan.FieldFeatures)
@@ -43258,6 +43380,10 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.GroupIds()
 	case subscriptionplan.FieldGroupRateMultipliers:
 		return m.GroupRateMultipliers()
+	case subscriptionplan.FieldResetCardCount:
+		return m.ResetCardCount()
+	case subscriptionplan.FieldResetCardLimitUsd:
+		return m.ResetCardLimitUsd()
 	case subscriptionplan.FieldFeatures:
 		return m.Features()
 	case subscriptionplan.FieldProductName:
@@ -43305,6 +43431,10 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldGroupIds(ctx)
 	case subscriptionplan.FieldGroupRateMultipliers:
 		return m.OldGroupRateMultipliers(ctx)
+	case subscriptionplan.FieldResetCardCount:
+		return m.OldResetCardCount(ctx)
+	case subscriptionplan.FieldResetCardLimitUsd:
+		return m.OldResetCardLimitUsd(ctx)
 	case subscriptionplan.FieldFeatures:
 		return m.OldFeatures(ctx)
 	case subscriptionplan.FieldProductName:
@@ -43417,6 +43547,20 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetGroupRateMultipliers(v)
 		return nil
+	case subscriptionplan.FieldResetCardCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResetCardCount(v)
+		return nil
+	case subscriptionplan.FieldResetCardLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResetCardLimitUsd(v)
+		return nil
 	case subscriptionplan.FieldFeatures:
 		v, ok := value.(string)
 		if !ok {
@@ -43485,6 +43629,12 @@ func (m *SubscriptionPlanMutation) AddedFields() []string {
 	if m.addmonthly_limit_usd != nil {
 		fields = append(fields, subscriptionplan.FieldMonthlyLimitUsd)
 	}
+	if m.addreset_card_count != nil {
+		fields = append(fields, subscriptionplan.FieldResetCardCount)
+	}
+	if m.addreset_card_limit_usd != nil {
+		fields = append(fields, subscriptionplan.FieldResetCardLimitUsd)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
 	}
@@ -43508,6 +43658,10 @@ func (m *SubscriptionPlanMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedWeeklyLimitUsd()
 	case subscriptionplan.FieldMonthlyLimitUsd:
 		return m.AddedMonthlyLimitUsd()
+	case subscriptionplan.FieldResetCardCount:
+		return m.AddedResetCardCount()
+	case subscriptionplan.FieldResetCardLimitUsd:
+		return m.AddedResetCardLimitUsd()
 	case subscriptionplan.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -43560,6 +43714,20 @@ func (m *SubscriptionPlanMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddMonthlyLimitUsd(v)
+		return nil
+	case subscriptionplan.FieldResetCardCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResetCardCount(v)
+		return nil
+	case subscriptionplan.FieldResetCardLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResetCardLimitUsd(v)
 		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
@@ -43666,6 +43834,12 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldGroupRateMultipliers:
 		m.ResetGroupRateMultipliers()
+		return nil
+	case subscriptionplan.FieldResetCardCount:
+		m.ResetResetCardCount()
+		return nil
+	case subscriptionplan.FieldResetCardLimitUsd:
+		m.ResetResetCardLimitUsd()
 		return nil
 	case subscriptionplan.FieldFeatures:
 		m.ResetFeatures()

@@ -1,6 +1,57 @@
 <template>
   <AppLayout>
     <div class="space-y-4">
+      <section v-if="!loading && resetCards.length" class="card space-y-4 p-6">
+        <div>
+          <h2 class="text-base font-semibold text-gray-900 dark:text-dark-50">{{
+            t('userSubscriptions.resetCards.title')
+          }}</h2>
+          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{
+            t('userSubscriptions.resetCards.description')
+          }}</p>
+        </div>
+        <div
+          v-for="resetCard in resetCards"
+          :key="resetCard.id"
+          class="flex flex-col gap-2 border-t border-gray-100 pt-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-dark-50"
+              >{{ resetCard.plan_name }} · #{{ resetCard.id }}</p
+            >
+            <p class="text-xs text-gray-500 dark:text-dark-400"
+              >{{
+                t('userSubscriptions.resetCards.cap', {
+                  amount: formatBalanceAmount(resetCard.limit_usd),
+                })
+              }}
+              · {{ formatDateTimeToMinute(new Date(resetCard.expires_at)) }}
+              {{ t('userSubscriptions.expires') }}</p
+            >
+            <p class="text-xs text-gray-500 dark:text-dark-400">{{
+              t('userSubscriptions.resetCards.bound', { id: resetCard.source_subscription_id })
+            }}</p>
+            <p v-if="resetCard.used_at" class="text-xs text-gray-500 dark:text-dark-400">{{
+              t('userSubscriptions.resetCards.used', {
+                amount: formatBalanceAmount(resetCard.credited_usd),
+                id: resetCard.target_subscription_id,
+              })
+            }}</p>
+          </div>
+          <button
+            v-if="resetCard.status === 'available'"
+            type="button"
+            class="btn btn-primary btn-sm"
+            data-testid="use-reset-card"
+            :disabled="usingResetCard"
+            @click="openResetCard(resetCard)"
+            >{{ t('userSubscriptions.resetCards.use') }}</button
+          >
+          <span v-else class="badge badge-gray">{{
+            t(`userSubscriptions.resetCards.status.${resetCard.status}`)
+          }}</span>
+        </div>
+      </section>
       <div
         v-if="loading"
         class="grid gap-4 lg:grid-cols-2"
@@ -181,6 +232,17 @@
           </dl>
 
           <div class="flex-1 px-4 py-4 sm:px-6">
+            <p
+              v-if="(card.active?.reset_credit_usd || 0) > 0"
+              class="mb-4 text-sm text-primary-600 dark:text-primary-400"
+            >
+              {{
+                t('userSubscriptions.resetCards.remaining', {
+                  amount: formatBalanceAmount(card.active?.reset_credit_usd || 0),
+                })
+              }}
+            </p>
+
             <div v-if="card.active" class="space-y-4">
               <div v-for="window in usageWindows(card.active)" :key="window.key">
                 <div class="flex items-baseline justify-between gap-3">
@@ -245,6 +307,26 @@
       </div>
     </div>
     <ConfirmDialog
+      :show="resetTarget !== null"
+      :title="t('userSubscriptions.resetCards.use')"
+      :message="
+        t('userSubscriptions.resetCards.confirm', {
+          amount: formatBalanceAmount(resetPreviewAmount),
+        })
+      "
+      :confirm-text="t('userSubscriptions.resetCards.use')"
+      :loading="usingResetCard"
+      @confirm="confirmResetCard"
+      @cancel="closeResetCard"
+    >
+      <p class="text-sm font-medium text-gray-900 dark:text-dark-50">{{
+        t('userSubscriptions.resetCards.bound', { id: resetTarget?.source_subscription_id })
+      }}</p>
+      <p v-if="!resetBoundSubscription" class="text-sm text-amber-700 dark:text-amber-300">{{
+        t('userSubscriptions.resetCards.noTarget')
+      }}</p>
+    </ConfirmDialog>
+    <ConfirmDialog
       :show="revokeTarget !== null"
       :title="t('userSubscriptions.revokeTitle')"
       :message="revokeDialogMessage"
@@ -268,7 +350,10 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
-import subscriptionsAPI, { type RevokeSubscriptionResponse } from '@/api/subscriptions'
+import subscriptionsAPI, {
+  type RevokeSubscriptionResponse,
+  type SubscriptionResetCard,
+} from '@/api/subscriptions'
 import type { SubscriptionPlan } from '@/api/payment.types'
 import type { UserSubscription } from '@/api/subscriptions.types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -295,6 +380,8 @@ import {
 // finishes. The displayed order changes after persistence succeeds, then shared
 // subscription state refreshes independently. A refresh failure cannot undo a
 // successful server mutation, so it is logged separately from saving errors.
+// Purchase cards remain bound to their originating paid grant and display restored
+// welfare separately from the original quota and its unchanged refresh time.
 
 // SubscriptionCard pairs one issued grant with display metadata and expiry labels.
 type SubscriptionCard = {
@@ -330,6 +417,76 @@ const revokeTarget = ref<SubscriptionCard | null>(null)
 const revoking = ref(false)
 // savingOrder serializes rank changes and blocks revocation until saving completes.
 const savingOrder = ref(false)
+// Purchase benefits retain their server identity; the selected target is an
+// originating paid subscription and remains fixed during redemption.
+const resetCards = ref<SubscriptionResetCard[]>([])
+const resetTarget = ref<SubscriptionResetCard | null>(null)
+const usingResetCard = ref(false)
+
+// resetBoundSubscription resolves only the card's originating paid grant.
+// Another active grant of the same plan cannot replace a frozen or expired
+// bound subscription; the server repeats this identity check at redemption.
+const resetBoundSubscription = computed(() =>
+  subscriptions.value.find(
+    (sub) =>
+      sub.id === resetTarget.value?.source_subscription_id &&
+      sub.status === 'active' &&
+      (sub.weekly_limit_usd || 0) > 0,
+  ),
+)
+
+// resetPreviewAmount estimates restored credit from the displayed weekly use.
+// The authoritative result excludes unsettled holds and rechecks the cap at use.
+const resetPreviewAmount = computed(() => {
+  return Math.min(
+    resetTarget.value?.limit_usd || 0,
+    resetBoundSubscription.value?.weekly_usage_usd || 0,
+  )
+})
+
+// openResetCard selects one available purchase benefit for its bound paid
+// subscription. A pending redemption keeps its card and grant identity fixed;
+// another purchase of the same plan cannot receive this card's benefit.
+function openResetCard(card: SubscriptionResetCard) {
+  if (usingResetCard.value || card.status !== 'available') return
+  resetTarget.value = card
+}
+
+// closeResetCard dismisses the selection after outstanding redemption completes.
+function closeResetCard() {
+  if (usingResetCard.value) return
+  resetTarget.value = null
+}
+
+// confirmResetCard submits the fixed card and its originating grant once. Its server
+// result is authoritative; later list refresh errors cannot reverse a successful
+// redemption, so refresh failures are logged independently from mutation failures.
+async function confirmResetCard() {
+  if (!resetTarget.value || !resetBoundSubscription.value || usingResetCard.value) return
+  usingResetCard.value = true
+  try {
+    const used = await subscriptionsAPI.useResetCard(
+      resetTarget.value.id,
+      resetTarget.value.source_subscription_id,
+    )
+    resetTarget.value = null
+    resetCards.value = resetCards.value.map((card) => (card.id === used.id ? used : card))
+    appStore.showSuccess(
+      t('userSubscriptions.resetCards.success', { amount: formatBalanceAmount(used.credited_usd) }),
+    )
+    // The purchase benefit has committed. Refresh visible and shared quota
+    // views without reissuing redemption when either subsequent request fails.
+    await loadSubscriptions()
+    await subscriptionStore
+      .fetchActiveSubscriptions(true)
+      .catch((error) => console.error('Failed to refresh reset-card benefit:', error))
+  } catch (error) {
+    console.error('Failed to use subscription reset card:', error)
+    appStore.showError(t('userSubscriptions.resetCards.failed'))
+  } finally {
+    usingResetCard.value = false
+  }
+}
 
 // subscriptionCards keeps the server's consumption order and exposes every
 // active or queued purchase separately, including repeated purchases of one plan.
@@ -393,7 +550,12 @@ async function moveSubscription(index: number, direction: -1 | 1) {
 async function loadSubscriptions() {
   try {
     loading.value = true
-    subscriptions.value = await subscriptionsAPI.getMySubscriptions()
+    const [items, cards] = await Promise.all([
+      subscriptionsAPI.getMySubscriptions(),
+      subscriptionsAPI.getResetCards(),
+    ])
+    subscriptions.value = items
+    resetCards.value = cards
   } catch (error) {
     console.error('Failed to load subscriptions:', error)
     appStore.showError(t('userSubscriptions.failedToLoad'))
@@ -437,7 +599,11 @@ function usageWindows(subscription: UserSubscription) {
 // canRevokeSubscription checks whether an active grant has exhausted its
 // highest configured quota and can show the self-revocation action.
 function canRevokeSubscription(card: SubscriptionCard): boolean {
-  return card.active != null && highestQuotaExhausted(card.active)
+  return (
+    card.active != null &&
+    !(card.active.reset_credit_usd && card.active.reset_credit_usd > 0) &&
+    highestQuotaExhausted(card.active)
+  )
 }
 
 // revokeDialogMessage reports whether a same-plan successor is visible when

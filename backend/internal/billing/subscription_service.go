@@ -160,8 +160,12 @@ type SelfRevokeSubscriptionResult struct {
 // while a positive source-order identity can return an existing grant before
 // template validation.
 type AssignSubscriptionInput struct {
-	UserID int64 // target recipient user identity
-	PlanID int64 // selected subscription plan identity
+	// Reset card terms come from the paid order snapshot. Only positive source
+	// orders issue cards, in the same transaction as the new subscription.
+	ResetCardCount    int     // included paid purchase card count
+	ResetCardLimitUSD float64 // USD issued per-card cap
+	UserID            int64   // target recipient user identity
+	PlanID            int64   // selected subscription plan identity
 	// ValidityDays overrides live-plan duration only when positive.
 	// Provided-template and nonpersistent paths normalize nonpositive values to
 	// thirty before applying MaxValidityDays.
@@ -569,6 +573,17 @@ func (s *SubscriptionService) assignOrExtendSubscriptionUnlocked(ctx context.Con
 	if err := s.userSubRepo.Create(ctx, sub); err != nil {
 		return nil, false, err
 	}
+	if input.SourceOrderID != nil && *input.SourceOrderID > 0 && input.ResetCardCount > 0 {
+		issuer, ok := s.userSubRepo.(SubscriptionResetCardStore)
+		if !ok {
+			return nil, false, fmt.Errorf("subscription reset card storage unavailable")
+		}
+		// The source grant and its purchase cards commit together. Replayed
+		// payment orders return their existing grant before reaching this issuance.
+		if err := issuer.IssueResetCards(ctx, sub, input.ResetCardCount, input.ResetCardLimitUSD); err != nil {
+			return nil, false, err
+		}
+	}
 	created, err := s.userSubRepo.GetByID(ctx, sub.ID)
 	if err != nil {
 		return nil, false, err
@@ -752,12 +767,20 @@ func (s *SubscriptionService) revokeOwnExhaustedSubscriptionInTx(ctx context.Con
 	if sub.EffectiveStatus(now) != SubscriptionStatusActive {
 		return nil, ErrSubscriptionNotActive
 	}
+	views := []UserSubscription{*sub}
+	if err := s.loadResetCredits(ctx, views); err != nil {
+		return nil, err
+	}
+	sub.ResetCredits = views[0].ResetCredits
 	if !sub.HighestQuotaExhausted() {
 		return nil, ErrSubscriptionQuotaAvailable
 	}
 
 	chain, err := s.userSubRepo.ListByUserIDAndPlanID(ctx, sub.UserID, sub.PlanID)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.loadResetCredits(ctx, chain); err != nil {
 		return nil, err
 	}
 	var replacement *UserSubscription
@@ -1191,6 +1214,11 @@ func (s *SubscriptionService) GetByID(ctx context.Context, id int64) (*UserSubsc
 	}
 	now := s.clock.now()
 	sub.Status = sub.EffectiveStatus(now)
+	items := []UserSubscription{*sub}
+	if err := s.loadResetCredits(ctx, items); err != nil {
+		return nil, err
+	}
+	sub.ResetCredits = items[0].ResetCredits
 	return sub, nil
 }
 
@@ -1256,6 +1284,9 @@ func (s *SubscriptionService) GetUsableSubscription(ctx context.Context, userID 
 	// Admission uses the same persisted order as locked settlement, so a
 	// depleted earlier grant can yield to the next applicable entitlement.
 	SortSubscriptions(subs)
+	if err := s.loadResetCredits(ctx, subs); err != nil {
+		return nil, false, err
+	}
 	for i := range subs {
 		sub := &subs[i]
 		needsMaintenance, validateErr := s.ValidateAndCheckLimits(sub)
@@ -1308,6 +1339,9 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 	normalizeExpiredWindows(subs, s.clock.calendar())
 	NormalizeSubscriptionStatus(subs)
 	SortSubscriptions(subs)
+	if err := s.loadResetCredits(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
@@ -1323,6 +1357,9 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 	normalizeExpiredWindows(subs, s.clock.calendar())
 	NormalizeSubscriptionStatus(subs)
 	SortSubscriptions(subs)
+	if err := s.loadResetCredits(ctx, subs); err != nil {
+		return nil, err
+	}
 	return subs, nil
 }
 
@@ -1521,7 +1558,7 @@ func (s *SubscriptionService) EnsureWindowMaintenance(ctx context.Context, sub *
 	// Reread after activation and reset requests, including successful
 	// conditional no-ops. Admission must use this stored snapshot instead of the
 	// locally cleared counters that another reset may have superseded.
-	return s.userSubRepo.GetByID(ctx, sub.ID)
+	return s.GetByID(ctx, sub.ID)
 }
 
 // CheckUsageLimits delegates overlapping quota checks for a nonnil grant and
@@ -1532,10 +1569,20 @@ func (s *SubscriptionService) CheckUsageLimits(_ context.Context, sub *UserSubsc
 }
 
 // CheckSubscriptionUsageLimits checks daily, weekly then monthly limits on a
-// nonnil grant, returning the first failure. Zero additional cost requires
-// remaining capacity; nonzero cost permits equality and performs no separate
-// finite or sign validation.
+// nonnil grant after using any unexpired reset-card benefit capacity. Zero
+// additional cost requires remaining benefit or original quota; nonzero cost
+// permits equality. The caller supplies validated financial amounts and performs
+// ownership, lifetime, suspension and group checks before this quota calculation.
 func CheckSubscriptionUsageLimits(sub *UserSubscription, additionalCost float64) error {
+	// Weekly welfare funding is separate from the original day and month
+	// ceilings, so it can admit a request without consuming future base allowance.
+	bonus := AvailableResetCredit(sub.ResetCredits, time.Now())
+	if bonus > 0 {
+		if additionalCost <= bonus {
+			return nil
+		}
+		additionalCost -= bonus
+	}
 	if SubscriptionWindowLimitExceeded(sub.DailyLimitUSD, sub.DailyUsageUSD, additionalCost) {
 		return ErrDailyLimitExceeded
 	}

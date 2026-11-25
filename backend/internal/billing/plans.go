@@ -183,6 +183,9 @@ func (s *Plans) CreatePlan(ctx context.Context, req CreatePlanRequest) (*Subscri
 	if err := ValidatePlanQuotas(req.DailyLimitUSD, req.WeeklyLimitUSD, req.MonthlyLimitUSD); err != nil {
 		return nil, err
 	}
+	if err := ValidateResetCardPolicy(req.ResetCardCount, req.ResetCardLimitUSD, req.WeeklyLimitUSD); err != nil {
+		return nil, err
+	}
 	// The group lookup runs after local term checks so a rejected price or quota does not
 	// reach storage adapters.
 	if err := s.validateGroupIDs(ctx, groupIDs); err != nil {
@@ -213,6 +216,25 @@ func (s *Plans) CreatePlan(ctx context.Context, req CreatePlanRequest) (*Subscri
 // changes and compares localized content revisions. Errors from either
 // phase are returned in the phase where they occur.
 func (s *Plans) UpdatePlan(ctx context.Context, id int64, req UpdatePlanRequest) (*SubscriptionPlan, error) {
+	if req.ResetCardCount != nil || req.ResetCardLimitUSD != nil || req.WeeklyLimitUSD.Present {
+		current, err := s.store.GetPlan(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		count, cap, weekly := current.ResetCardCount, current.ResetCardLimitUSD, current.WeeklyLimitUSD
+		if req.ResetCardCount != nil {
+			count = *req.ResetCardCount
+		}
+		if req.ResetCardLimitUSD != nil {
+			cap = *req.ResetCardLimitUSD
+		}
+		if req.WeeklyLimitUSD.Present {
+			weekly = req.WeeklyLimitUSD.Value
+		}
+		if err := ValidateResetCardPolicy(count, cap, weekly); err != nil {
+			return nil, err
+		}
+	}
 	// Text replacement needs the versioned content update so repository
 	// revision checks and translation handling use the submitted source
 	// that also supplies the plain compatibility fields.

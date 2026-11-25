@@ -45,11 +45,13 @@ type SubscriptionPlan struct {
 	// at issuance. Nil or nonpositive values represent unlimited windows; later
 	// plan changes do not replace granted limits. The mapper retains these
 	// optional amount pointers for read-only response consumption.
-	DailyLimitUSD   *float64 `json:"daily_limit_usd"`   // USD
-	WeeklyLimitUSD  *float64 `json:"weekly_limit_usd"`  // USD
-	MonthlyLimitUSD *float64 `json:"monthly_limit_usd"` // USD
-	Features        string   `json:"features"`          // selected plan feature text
-	ProductName     string   `json:"product_name"`      // selected payment product name
+	DailyLimitUSD     *float64 `json:"daily_limit_usd"`                // USD
+	WeeklyLimitUSD    *float64 `json:"weekly_limit_usd"`               // USD
+	MonthlyLimitUSD   *float64 `json:"monthly_limit_usd"`              // USD
+	ResetCardCount    int      `json:"reset_card_count,omitempty"`     // included cards per paid purchase
+	ResetCardLimitUSD float64  `json:"reset_card_limit_usd,omitempty"` // USD per-card benefit cap
+	Features          string   `json:"features"`                       // selected plan feature text
+	ProductName       string   `json:"product_name"`                   // selected payment product name
 	// ForSale determines whether checkout offers the plan for new purchases.
 	// Existing subscriptions can still reference this plan after it is taken
 	// off sale.
@@ -69,10 +71,11 @@ type SubscriptionPlanGroup struct {
 // UserSubscription carries granted validity, quota observations and hydrated
 // user/plan response data.
 type UserSubscription struct {
-	ID                  int64 `json:"id"`                   // local granted subscription identifier
-	UserID              int64 `json:"user_id"`              // grant recipient user identifier
-	PlanID              int64 `json:"plan_id"`              // grant source plan identifier
-	ConsumptionPriority int   `json:"consumption_priority"` // automatic consumption order rank
+	ID                  int64   `json:"id"`                         // local granted subscription identifier
+	UserID              int64   `json:"user_id"`                    // grant recipient user identifier
+	PlanID              int64   `json:"plan_id"`                    // grant source plan identifier
+	ConsumptionPriority int     `json:"consumption_priority"`       // automatic consumption order rank
+	ResetCreditUSD      float64 `json:"reset_credit_usd,omitempty"` // USD currently spendable weekly benefit
 
 	// StartsAt and ExpiresAt bound the granted interval with inclusive start and
 	// exclusive expiry. Status is supplied by the service view used for this

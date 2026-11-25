@@ -276,6 +276,48 @@ func (_u *SubscriptionPlanUpdate) SetGroupRateMultipliers(v map[int64]float64) *
 	return _u
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_u *SubscriptionPlanUpdate) SetResetCardCount(v int) *SubscriptionPlanUpdate {
+	_u.mutation.ResetResetCardCount()
+	_u.mutation.SetResetCardCount(v)
+	return _u
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableResetCardCount(v *int) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddResetCardCount adds value to the "reset_card_count" field.
+func (_u *SubscriptionPlanUpdate) AddResetCardCount(v int) *SubscriptionPlanUpdate {
+	_u.mutation.AddResetCardCount(v)
+	return _u
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (_u *SubscriptionPlanUpdate) SetResetCardLimitUsd(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.ResetResetCardLimitUsd()
+	_u.mutation.SetResetCardLimitUsd(v)
+	return _u
+}
+
+// SetNillableResetCardLimitUsd sets the "reset_card_limit_usd" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableResetCardLimitUsd(v *float64) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetResetCardLimitUsd(*v)
+	}
+	return _u
+}
+
+// AddResetCardLimitUsd adds value to the "reset_card_limit_usd" field.
+func (_u *SubscriptionPlanUpdate) AddResetCardLimitUsd(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.AddResetCardLimitUsd(v)
+	return _u
+}
+
 // SetFeatures sets the "features" field.
 func (_u *SubscriptionPlanUpdate) SetFeatures(v string) *SubscriptionPlanUpdate {
 	_u.mutation.SetFeatures(v)
@@ -571,6 +613,18 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.GroupRateMultipliers(); ok {
 		_spec.SetField(subscriptionplan.FieldGroupRateMultipliers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ResetCardCount(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardCount(); ok {
+		_spec.AddField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResetCardLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardLimitUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardLimitUsd(); ok {
+		_spec.AddField(subscriptionplan.FieldResetCardLimitUsd, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
@@ -944,6 +998,48 @@ func (_u *SubscriptionPlanUpdateOne) SetGroupRateMultipliers(v map[int64]float64
 	return _u
 }
 
+// SetResetCardCount sets the "reset_card_count" field.
+func (_u *SubscriptionPlanUpdateOne) SetResetCardCount(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetResetCardCount()
+	_u.mutation.SetResetCardCount(v)
+	return _u
+}
+
+// SetNillableResetCardCount sets the "reset_card_count" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableResetCardCount(v *int) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetResetCardCount(*v)
+	}
+	return _u
+}
+
+// AddResetCardCount adds value to the "reset_card_count" field.
+func (_u *SubscriptionPlanUpdateOne) AddResetCardCount(v int) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddResetCardCount(v)
+	return _u
+}
+
+// SetResetCardLimitUsd sets the "reset_card_limit_usd" field.
+func (_u *SubscriptionPlanUpdateOne) SetResetCardLimitUsd(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetResetCardLimitUsd()
+	_u.mutation.SetResetCardLimitUsd(v)
+	return _u
+}
+
+// SetNillableResetCardLimitUsd sets the "reset_card_limit_usd" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableResetCardLimitUsd(v *float64) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetResetCardLimitUsd(*v)
+	}
+	return _u
+}
+
+// AddResetCardLimitUsd adds value to the "reset_card_limit_usd" field.
+func (_u *SubscriptionPlanUpdateOne) AddResetCardLimitUsd(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddResetCardLimitUsd(v)
+	return _u
+}
+
 // SetFeatures sets the "features" field.
 func (_u *SubscriptionPlanUpdateOne) SetFeatures(v string) *SubscriptionPlanUpdateOne {
 	_u.mutation.SetFeatures(v)
@@ -1269,6 +1365,18 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.GroupRateMultipliers(); ok {
 		_spec.SetField(subscriptionplan.FieldGroupRateMultipliers, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.ResetCardCount(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardCount(); ok {
+		_spec.AddField(subscriptionplan.FieldResetCardCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResetCardLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldResetCardLimitUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedResetCardLimitUsd(); ok {
+		_spec.AddField(subscriptionplan.FieldResetCardLimitUsd, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)

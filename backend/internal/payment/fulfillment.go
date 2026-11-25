@@ -885,7 +885,9 @@ func (s *Fulfillment) loadFulfillableOrder(ctx context.Context, oid int64) (*Ord
 // skip another assignment attempt.
 //
 // Without that audit signal, billing receives SourceOrderID for its persistent
-// replay rules and any recorded positive duration or quota template.
+// replay rules, any recorded duration or quota template, and included reset
+// card terms from the paid order. Billing issues those cards atomically with
+// the source subscription; ordinary grants without a paid order issue none.
 // Assignment completes before its ordinary SUBSCRIPTION_ASSIGNED audit, which
 // can fail silently through the injected callback. Billing's source-order
 // handling remains the replay mechanism when audit evidence is unavailable.
@@ -905,11 +907,13 @@ func (s *Fulfillment) DoSub(ctx context.Context, o *Order, lease *FulfillmentLea
 	if !assigned {
 		orderNote := fmt.Sprintf("payment order %d", o.ID)
 		input := &billing.AssignSubscriptionInput{
-			UserID:        o.UserID,
-			PlanID:        *o.PlanID,
-			AssignedBy:    0,
-			Notes:         orderNote,
-			SourceOrderID: &o.ID,
+			UserID:            o.UserID,
+			PlanID:            *o.PlanID,
+			AssignedBy:        0,
+			Notes:             orderNote,
+			SourceOrderID:     &o.ID,
+			ResetCardCount:    o.PlanSnapshot.ResetCardCount,
+			ResetCardLimitUSD: o.PlanSnapshot.ResetCardLimitUSD,
 		}
 		if snapshot := o.PlanSnapshot; snapshot.ValidityDays > 0 || snapshot.DailyLimitUSD != nil || snapshot.WeeklyLimitUSD != nil || snapshot.MonthlyLimitUSD != nil {
 			input.ValidityDays = snapshot.ValidityDays

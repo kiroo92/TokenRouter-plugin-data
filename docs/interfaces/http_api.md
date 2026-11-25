@@ -108,6 +108,14 @@ Markdown 正文需要 JWT，并且菜单可见；管理员页面只对管理员�
 
 `PUT /api/v1/subscriptions/order` 使用用户 JWT，接受 `{"subscription_ids":[23,17,42]}`，最多 1000 个 ID。提交顺序就是消费顺序，服务端把未提交的其他可排序订阅追加到末尾。只能提交本人 active 或 pending 的记录，重复、过期、暂停、已删除或他人 ID 返回 `400 SUBSCRIPTION_ORDER_INVALID`，整次修改不生效。成功返回 `data: {"success":true}`。排序只影响自动结算，固定订阅的 API Key 保持原选择。
 
+### 购买附送重置卡
+
+管理员套餐创建和更新接受 `reset_card_count`、`reset_card_limit_usd`，数量 0 关闭附送，开启须为 1 至 100 张、有限正数上限和有限正数周额度。公开商品、管理员商品及支付订单快照返回这些购买条款；旧订单缺省数量为零。用户订阅响应可带 `reset_credit_usd`，表示该订阅本周剩余的独立福利余额。
+
+`GET /api/v1/subscriptions/reset-cards` 要求用户 JWT，返回本人的卡数组，包含 `id`、`plan_id`、`source_subscription_id`、`plan_name`、`limit_usd`、`expires_at`、`status` 及使用后的 `used_at`、`target_subscription_id`、`credited_usd`、`remaining_usd`、`benefit_expires_at`。状态为 `available`、`used`、`expired` 或 `unavailable`；历史补回金额保留，当前已过期或来源不可用时剩余福利为零。
+
+`POST /api/v1/subscriptions/reset-cards/:card_id/use` 接受 `{"subscription_id":123}`。用户身份来自 JWT，服务端核对卡及绑定订阅属于本人，且 `subscription_id` 等于卡的 `source_subscription_id`，当前可用并有本周实际原额度消费。即使同套餐，其他订阅 ID 也会被拒绝。成功返回已使用的卡及补回金额；同卡同目标重放复用结果，其他无效使用返回 `400 SUBSCRIPTION_RESET_CARD_UNAVAILABLE`，不会扣卡。绑定订阅冻结、过期、提交非绑定订阅及补回金额为零均不允许使用。绑定订阅过期后，未用卡和剩余福利都不可再用。补回、期限与预占规则见[周额度重置卡](../domains/payments_and_entitlements.md#subscription_weekly_reset_cards)。
+
 ### 订阅自助撤销
 
 用户订阅页提供一个有额度条件的自助撤销接口：

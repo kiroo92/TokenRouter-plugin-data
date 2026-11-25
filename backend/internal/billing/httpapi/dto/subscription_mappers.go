@@ -3,6 +3,7 @@ package dto
 import (
 	"maps"
 	"strconv"
+	"time"
 
 	"github.com/TokenFlux/TokenRouter/internal/billing"
 )
@@ -40,6 +41,8 @@ func SubscriptionPlanFromServiceShallow(plan *billing.SubscriptionPlan) *Subscri
 		ID:                   plan.ID,
 		Name:                 plan.Name,
 		Description:          plan.Description,
+		ResetCardCount:       plan.ResetCardCount,
+		ResetCardLimitUSD:    plan.ResetCardLimitUSD,
 		Price:                plan.Price,
 		OriginalPrice:        plan.OriginalPrice,
 		Currency:             plan.Currency,
@@ -109,6 +112,7 @@ func UserSubscriptionFromServiceBase(sub *billing.UserSubscription) UserSubscrip
 		UserID:              sub.UserID,
 		PlanID:              sub.PlanID,
 		ConsumptionPriority: sub.ConsumptionPriority,
+		ResetCreditUSD:      billing.AvailableResetCredit(sub.ResetCredits, time.Now()),
 		StartsAt:            sub.StartsAt,
 		ExpiresAt:           sub.ExpiresAt,
 		Status:              sub.Status,

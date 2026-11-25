@@ -257,6 +257,24 @@ export default {
   },
   // User Subscriptions Page
   userSubscriptions: {
+    resetCards: {
+      title: '我的周额度重置卡',
+      description:
+        '购买后自动发放，与原月卡同时到期，仅限绑定的这一份订阅，不能用于同套餐的其他订阅。绑定订阅过期后卡及剩余福利均不可用，冻结时需先解冻。补回本周已用额度，最多为单张上限，不占用月卡后续额度、不改变刷新时间；福利额度仅当周有效，不跨周累积。建议本周额度用完后再用，以上以商城和控制台显示为准。',
+      cap: '单张最多补回 {amount}',
+      included: '附送 {count} 张周额度重置卡，单张最多补回 {amount}',
+      use: '使用重置卡',
+      bound: '绑定订阅 #{id}',
+      noTarget:
+        '绑定的订阅暂不可用。冻结时需先解冻；已过期或未生效时不可使用，也不能转给其他订阅。',
+      confirm:
+        '预计补回本周已用额度 {amount}，实际金额以使用时为准。原额度和刷新时间保持不变，补回额度只在本周有效。本周无已用额度时不会消耗重置卡。',
+      success: '已补回本周福利额度 {amount}',
+      failed: '未能使用重置卡，请检查绑定订阅的状态、有效期和本周已用额度后重试',
+      remaining: '本周福利剩余额度 {amount}，本周刷新时失效',
+      used: '已向订阅 #{id} 补回 {amount}',
+      status: { used: '已使用', expired: '已过期', unavailable: '暂不可用' },
+    },
     useOrder: '使用顺序 {order}',
     moveUp: '优先使用',
     moveDown: '延后使用',
@@ -963,6 +981,11 @@ export default {
       platform: '平台',
       rateMultiplierLabel: '倍率',
       dailyLimit: '日限额',
+      includeResetCards: '购买附送周额度重置卡',
+      resetCardCount: '每次购买附送张数',
+      resetCardLimit: '单张最多补回额度（USD）',
+      resetCardHelp:
+        '仅新支付订单自动发放，须配置有限周额度。卡与原订阅同时到期；已发放卡保留购买时的上限。轻享可设置 585，尊享可设置 1162.5。',
       weeklyLimit: '周限额',
       monthlyLimit: '月限额',
       unlimited: '无限制',

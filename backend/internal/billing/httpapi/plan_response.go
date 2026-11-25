@@ -44,6 +44,8 @@ type PlanRecordResponse struct {
 	// leave them unchanged during serialization.
 	GroupIDs             []int64           `json:"group_ids,omitempty"`              // applicable subscription group identifiers
 	GroupRateMultipliers map[int64]float64 `json:"group_rate_multipliers,omitempty"` // plan group rate overrides
+	ResetCardCount       int               `json:"reset_card_count,omitempty"`       // included cards per paid purchase
+	ResetCardLimitUSD    float64           `json:"reset_card_limit_usd,omitempty"`   // USD per-card benefit cap
 	Features             string            `json:"features,omitempty"`               // stored plan feature text
 	ProductName          string            `json:"product_name,omitempty"`           // stored payment product name
 	ForSale              bool              `json:"for_sale,omitempty"`               // new purchase availability flag
@@ -66,6 +68,8 @@ func planRecord(plan *billing.SubscriptionPlan) *PlanRecordResponse {
 		ID:                   plan.ID,
 		Name:                 plan.Name,
 		Description:          plan.Description,
+		ResetCardCount:       plan.ResetCardCount,
+		ResetCardLimitUSD:    plan.ResetCardLimitUSD,
 		Price:                plan.Price,
 		OriginalPrice:        plan.OriginalPrice,
 		Currency:             plan.Currency,

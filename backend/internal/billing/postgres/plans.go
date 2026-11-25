@@ -111,6 +111,8 @@ func (s *PlanStore) CreatePlan(ctx context.Context, req billing.CreatePlanReques
 		SetName(strings.TrimSpace(req.Name)).
 		SetDescription(req.Description).
 		SetPrice(req.Price).
+		SetResetCardCount(req.ResetCardCount).
+		SetResetCardLimitUsd(req.ResetCardLimitUSD).
 		SetCurrency(currency).
 		SetValidityDays(req.ValidityDays).
 		SetValidityUnit(strings.TrimSpace(req.ValidityUnit)).
@@ -271,6 +273,12 @@ func (s *PlanStore) UpdatePlan(ctx context.Context, id int64, req billing.Update
 			return nil, err
 		}
 		update.SetCurrency(currency)
+	}
+	if req.ResetCardCount != nil {
+		update.SetResetCardCount(*req.ResetCardCount)
+	}
+	if req.ResetCardLimitUSD != nil {
+		update.SetResetCardLimitUsd(*req.ResetCardLimitUSD)
 	}
 	if req.ValidityDays != nil {
 		update.SetValidityDays(*req.ValidityDays)

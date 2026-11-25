@@ -16,9 +16,13 @@ const mockGetMySubscriptions = vi.fn()
 const mockGetActiveSubscriptions = vi.fn()
 const mockRevokeExhaustedSubscription = vi.fn()
 const mockReorderSubscriptions = vi.fn()
+const mockGetResetCards = vi.fn()
+const mockUseResetCard = vi.fn()
 
 vi.mock('@/api/subscriptions', () => ({
   default: {
+    getResetCards: (...args: unknown[]) => mockGetResetCards(...args),
+    useResetCard: (...args: unknown[]) => mockUseResetCard(...args),
     getMySubscriptions: (...args: unknown[]) => mockGetMySubscriptions(...args),
     reorderSubscriptions: (...args: unknown[]) => mockReorderSubscriptions(...args),
     getActiveSubscriptions: (...args: unknown[]) => mockGetActiveSubscriptions(...args),
@@ -132,6 +136,8 @@ describe('SubscriptionsView', () => {
     mockGetActiveSubscriptions.mockReset().mockResolvedValue([])
     mockRevokeExhaustedSubscription.mockReset()
     mockReorderSubscriptions.mockReset().mockResolvedValue(undefined)
+    mockGetResetCards.mockReset().mockResolvedValue([])
+    mockUseResetCard.mockReset()
   })
 
   // Active and pending records share one plan while another plan is also active.
@@ -252,6 +258,72 @@ describe('SubscriptionsView', () => {
     await flushPromises()
     expect(mockReorderSubscriptions).toHaveBeenCalledWith([2, 1, 3])
     expect(wrapper.findAll('article')[0].text()).toContain('#2')
+  })
+
+  // Two active subscriptions share a plan but the card belongs to one purchase.
+  // Confirmation must retain its bound identity even when the other subscription
+  // appears first, and refresh card history after the server accepts redemption.
+  it('uses a purchase reset card only on its bound subscription', async () => {
+    mockGetMySubscriptions.mockResolvedValue([
+      {
+        id: 13,
+        plan_id: 101,
+        status: 'active',
+        starts_at: '2026-11-01T00:00:00Z',
+        expires_at: '2026-12-01T00:00:00Z',
+        weekly_usage_usd: 100,
+        weekly_limit_usd: 100,
+        plan: { name: 'Light' },
+      },
+      {
+        id: 11,
+        plan_id: 101,
+        status: 'active',
+        starts_at: '2026-11-01T00:00:00Z',
+        expires_at: '2026-12-01T00:00:00Z',
+        weekly_usage_usd: 80,
+        weekly_limit_usd: 100,
+        plan: { name: 'Light' },
+      },
+      {
+        id: 12,
+        plan_id: 202,
+        status: 'active',
+        starts_at: '2026-11-01T00:00:00Z',
+        expires_at: '2026-12-01T00:00:00Z',
+        plan: { name: 'Premium' },
+      },
+    ])
+    const card = {
+      id: 7,
+      plan_id: 101,
+      source_subscription_id: 11,
+      plan_name: 'Light',
+      limit_usd: 585,
+      expires_at: '2026-12-01T00:00:00Z',
+      credited_usd: 0,
+      status: 'available',
+    }
+    mockGetResetCards.mockResolvedValue([card])
+    mockUseResetCard.mockImplementation(async () => {
+      const used = {
+        ...card,
+        status: 'used',
+        used_at: '2026-11-25T00:00:00Z',
+        target_subscription_id: 11,
+        credited_usd: 80,
+      }
+      mockGetResetCards.mockResolvedValue([used])
+      return used
+    })
+    const wrapper = await mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="use-reset-card"]').trigger('click')
+    await wrapper.get('[data-testid="revoke-dialog-confirm"]').trigger('click')
+    await flushPromises()
+    expect(mockUseResetCard).toHaveBeenCalledExactlyOnceWith(7, 11)
+    expect(wrapper.find('[data-testid="use-reset-card"]').exists()).toBe(false)
+    expect(mockGetMySubscriptions).toHaveBeenCalledTimes(2)
   })
 
   // Lower quota windows are exhausted while the highest configured window still has

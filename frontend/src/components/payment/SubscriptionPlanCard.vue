@@ -61,6 +61,17 @@
         </span>
       </div>
 
+      <p
+        v-if="(plan.reset_card_count || 0) > 0"
+        class="mt-4 text-sm text-primary-600 dark:text-primary-400"
+      >
+        {{
+          t('userSubscriptions.resetCards.included', {
+            count: plan.reset_card_count,
+            amount: formatPlanQuota(plan.reset_card_limit_usd),
+          })
+        }}
+      </p>
       <!-- Quota blocks show configured periods; plans with no positive limits display the unlimited state. -->
       <dl v-if="quotaItems.length > 0" :class="['mt-5 grid gap-2', quotaGridClass]">
         <div

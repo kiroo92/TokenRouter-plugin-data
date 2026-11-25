@@ -45,6 +45,10 @@ type SubscriptionPlan struct {
 	GroupIds []int64 `json:"group_ids,omitempty"`
 	// Subscription billing multipliers by group_id for this plan
 	GroupRateMultipliers map[int64]float64 `json:"group_rate_multipliers,omitempty"`
+	// ResetCardCount holds the value of the "reset_card_count" field.
+	ResetCardCount int `json:"reset_card_count,omitempty"`
+	// ResetCardLimitUsd holds the value of the "reset_card_limit_usd" field.
+	ResetCardLimitUsd float64 `json:"reset_card_limit_usd,omitempty"`
 	// Features holds the value of the "features" field.
 	Features string `json:"features,omitempty"`
 	// ProductName holds the value of the "product_name" field.
@@ -101,9 +105,9 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case subscriptionplan.FieldForSale:
 			values[i] = new(sql.NullBool)
-		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice, subscriptionplan.FieldDailyLimitUsd, subscriptionplan.FieldWeeklyLimitUsd, subscriptionplan.FieldMonthlyLimitUsd:
+		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice, subscriptionplan.FieldDailyLimitUsd, subscriptionplan.FieldWeeklyLimitUsd, subscriptionplan.FieldMonthlyLimitUsd, subscriptionplan.FieldResetCardLimitUsd:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldResetCardCount, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
 			values[i] = new(sql.NullString)
@@ -217,6 +221,18 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.GroupRateMultipliers); err != nil {
 					return fmt.Errorf("unmarshal field group_rate_multipliers: %w", err)
 				}
+			}
+		case subscriptionplan.FieldResetCardCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_count", values[i])
+			} else if value.Valid {
+				_m.ResetCardCount = int(value.Int64)
+			}
+		case subscriptionplan.FieldResetCardLimitUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field reset_card_limit_usd", values[i])
+			} else if value.Valid {
+				_m.ResetCardLimitUsd = value.Float64
 			}
 		case subscriptionplan.FieldFeatures:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -346,6 +362,12 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("group_rate_multipliers=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GroupRateMultipliers))
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardCount))
+	builder.WriteString(", ")
+	builder.WriteString("reset_card_limit_usd=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ResetCardLimitUsd))
 	builder.WriteString(", ")
 	builder.WriteString("features=")
 	builder.WriteString(_m.Features)
