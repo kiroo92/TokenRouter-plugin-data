@@ -1041,9 +1041,9 @@ export default {
       dailyLimit: 'Daily Limit',
       includeResetCards: 'Include weekly reset cards with purchases',
       resetCardCount: 'Cards per purchase',
-      resetCardLimit: 'Maximum restored per card (USD)',
+      resetCardLimit: 'Per-card cap (follows weekly quota, USD)',
       resetCardHelp:
-        'Issued only for new paid orders; a finite weekly quota is required. Cards expire with the original subscription and retain the purchased cap. Example caps: 585 for Light and 1162.5 for Premium.',
+        'Set finite positive weekly and monthly quotas to enable cards. Each card cap automatically equals the weekly quota. Only new paid orders issue cards. Cards expire with the bound subscription and retain their purchased terms.',
       weeklyLimit: 'Weekly Limit',
       monthlyLimit: 'Monthly Limit',
       unlimited: 'Unlimited',

@@ -57,9 +57,9 @@ type PlanRepository interface {
 	// errors from that storage preparation are returned to the caller.
 	CreatePlan(context.Context, CreatePlanRequest) (*SubscriptionPlan, error)
 	// UpdatePlan applies requested pointer and presence-aware replacements
-	// to a plan. The PostgreSQL adapter handles group-rate normalization
-	// and localized-content revision checks, preserving omitted fields
-	// and returning the updated recorded value or its persistence error.
+	// to a plan. The PostgreSQL adapter derives card caps from locked quota
+	// terms, normalizes group rates and checks localized-content revisions,
+	// preserving omitted fields and returning the saved value or error.
 	UpdatePlan(context.Context, int64, UpdatePlanRequest) (*SubscriptionPlan, error)
 	// DeletePlan removes a plan from storage after the facade's separate
 	// order-count check. The PostgreSQL adapter performs the entity delete;
@@ -163,6 +163,7 @@ func (s *Plans) GetPlan(ctx context.Context, id int64) (*SubscriptionPlan, error
 // Required terms, currency syntax, and quota signs are checked before
 // storage. The request passed onward clears the legacy group field and
 // contains the same normalized selection used for its rate validation.
+// Included card caps follow the weekly limit and require a monthly limit.
 func (s *Plans) CreatePlan(ctx context.Context, req CreatePlanRequest) (*SubscriptionPlan, error) {
 	if req.Localization != nil {
 		copy := req.Localization.Source
@@ -183,9 +184,11 @@ func (s *Plans) CreatePlan(ctx context.Context, req CreatePlanRequest) (*Subscri
 	if err := ValidatePlanQuotas(req.DailyLimitUSD, req.WeeklyLimitUSD, req.MonthlyLimitUSD); err != nil {
 		return nil, err
 	}
-	if err := ValidateResetCardPolicy(req.ResetCardCount, req.ResetCardLimitUSD, req.WeeklyLimitUSD); err != nil {
+	cap, err := ResetCardPlanLimit(req.ResetCardCount, req.WeeklyLimitUSD, req.MonthlyLimitUSD)
+	if err != nil {
 		return nil, err
 	}
+	req.ResetCardLimitUSD = cap
 	// The group lookup runs after local term checks so a rejected price or quota does not
 	// reach storage adapters.
 	if err := s.validateGroupIDs(ctx, groupIDs); err != nil {
@@ -213,28 +216,10 @@ func (s *Plans) CreatePlan(ctx context.Context, req CreatePlanRequest) (*Subscri
 // an update that leaves group_ids out keeps the recorded selection and
 // needs no group lookup. This service checks requested required-field and
 // quota comparisons, while the repository normalizes currency and group
-// changes and compares localized content revisions. Errors from either
-// phase are returned in the phase where they occur.
+// changes and compares localized content revisions. The repository validates
+// partial card-policy changes against locked quota terms and synchronizes the
+// cap with the resulting weekly limit. Errors return from their owning phase.
 func (s *Plans) UpdatePlan(ctx context.Context, id int64, req UpdatePlanRequest) (*SubscriptionPlan, error) {
-	if req.ResetCardCount != nil || req.ResetCardLimitUSD != nil || req.WeeklyLimitUSD.Present {
-		current, err := s.store.GetPlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		count, cap, weekly := current.ResetCardCount, current.ResetCardLimitUSD, current.WeeklyLimitUSD
-		if req.ResetCardCount != nil {
-			count = *req.ResetCardCount
-		}
-		if req.ResetCardLimitUSD != nil {
-			cap = *req.ResetCardLimitUSD
-		}
-		if req.WeeklyLimitUSD.Present {
-			weekly = req.WeeklyLimitUSD.Value
-		}
-		if err := ValidateResetCardPolicy(count, cap, weekly); err != nil {
-			return nil, err
-		}
-	}
 	// Text replacement needs the versioned content update so repository
 	// revision checks and translation handling use the submitted source
 	// that also supplies the plain compatibility fields.

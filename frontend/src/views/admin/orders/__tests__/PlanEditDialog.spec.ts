@@ -61,6 +61,10 @@ function createTestI18n() {
             dailyLimit: 'Daily Limit',
             weeklyLimit: 'Weekly Limit',
             monthlyLimit: 'Monthly Limit',
+            includeResetCards: 'Include weekly reset cards with purchases',
+            resetCardCount: 'Cards per purchase',
+            resetCardLimit: 'Per-card cap (follows weekly quota, USD)',
+            resetCardHelp: 'Positive weekly and monthly quotas are required.',
             currency: 'Currency',
             currencyPlaceholder: 'NZD',
             currencyHint: 'ISO 4217 code',
@@ -172,6 +176,62 @@ describe('PlanEditDialog', () => {
       { id: 2, name: 'OpenAI', platform: 'openai', status: 'inactive', rate_multiplier: 2 },
     ])
   })
+
+  // A stored purchase benefit has a stale cap while both quota limits exist.
+  // The read-only cap must follow weekly edits and submit the newly derived amount.
+  it('derives reset card caps from the weekly quota', async () => {
+    const plan = {
+      ...planFixture([]),
+      weekly_limit_usd: 585,
+      monthly_limit_usd: 2340,
+      reset_card_count: 1,
+      reset_card_limit_usd: 0,
+    }
+    const wrapper = mountDialog(null, plan)
+    await flushPromises()
+    const cap = wrapper.get<HTMLInputElement>('[data-testid="plan-reset_card_limit_usd"]')
+    expect(cap.element.readOnly).toBe(true)
+    expect(cap.element.value).toBe('585')
+    await wrapper.get('[data-testid="plan-weekly_limit_usd"]').setValue('1162.5')
+    expect(cap.element.value).toBe('1162.5')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(mockUpdatePlan).toHaveBeenCalledWith(
+      plan.id,
+      expect.objectContaining({ reset_card_count: 1, reset_card_limit_usd: 1162.5 }),
+    )
+  })
+
+  // A plan starts with only one qualifying quota, then becomes eligible before
+  // a required limit is cleared. Issuance must stay unavailable without both limits.
+  it.each(['weekly_limit_usd', 'monthly_limit_usd'] as const)(
+    'requires %s alongside the other quota for reset cards',
+    async (missingQuota) => {
+      const plan = {
+        ...planFixture([]),
+        weekly_limit_usd: 585,
+        monthly_limit_usd: 2340,
+        [missingQuota]: null,
+      }
+      const wrapper = mountDialog(null, plan)
+      await flushPromises()
+      const toggle = wrapper.get<HTMLButtonElement>('[data-testid="plan-reset_cards_enabled"]')
+      expect(toggle.element.disabled).toBe(true)
+      await wrapper.get(`[data-testid="plan-${missingQuota}"]`).setValue('2000')
+      expect(toggle.element.disabled).toBe(false)
+      await toggle.trigger('click')
+      expect(wrapper.find('[data-testid="plan-reset_card_count"]').exists()).toBe(true)
+      await wrapper.get(`[data-testid="plan-${missingQuota}"]`).setValue('')
+      expect(toggle.element.disabled).toBe(true)
+      expect(wrapper.find('[data-testid="plan-reset_card_count"]').exists()).toBe(false)
+      await wrapper.get('form').trigger('submit.prevent')
+      await flushPromises()
+      expect(mockUpdatePlan).toHaveBeenCalledWith(
+        plan.id,
+        expect.objectContaining({ reset_card_count: 0, reset_card_limit_usd: 0 }),
+      )
+    },
+  )
 
   // A new plan has valid required fields and empty quota inputs. Submission must send null
   // quota limits, normalize the currency code, and avoid displaying a validation error.

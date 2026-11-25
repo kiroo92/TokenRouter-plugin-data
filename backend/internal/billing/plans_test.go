@@ -13,6 +13,8 @@ import (
 // plans_test.go checks the group selection a plan write declares against the adapter
 // that reports stored groups. A deleted group leaves its identifier in plans that already
 // record it, so the service confirms the submitted selection before storage receives it.
+// Purchase-card scenarios also verify that creation derives the cap from weekly quota
+// and rejects benefits without a finite monthly quota before writing sale terms.
 
 // planWriteGroupValidator records requested identifiers and returns the configured result,
 // letting a scenario inspect which selection a plan write submitted.
@@ -29,6 +31,28 @@ type planWriteStore struct {
 	created []CreatePlanRequest
 	// updated holds update requests accepted by the store.
 	updated []UpdatePlanRequest
+}
+
+// TestPlansCreatePlanDerivesResetCap submits a stale manual cap with valid
+// weekly and monthly limits. The stored request must use the weekly quota;
+// removing the monthly quota must reject issuance before any storage write.
+func TestPlansCreatePlanDerivesResetCap(t *testing.T) {
+	store := &planWriteStore{}
+	service := NewPlans(store, nil, nil)
+	weekly, monthly := 585.0, 2340.0
+	request := newPlanWriteRequest(0, nil)
+	request.WeeklyLimitUSD = &weekly
+	request.MonthlyLimitUSD = &monthly
+	request.ResetCardCount = 1
+	request.ResetCardLimitUSD = 0
+	_, err := service.CreatePlan(t.Context(), request)
+	require.NoError(t, err)
+	require.Len(t, store.created, 1)
+	require.Equal(t, weekly, store.created[0].ResetCardLimitUSD)
+	request.MonthlyLimitUSD = nil
+	_, err = service.CreatePlan(t.Context(), request)
+	require.Equal(t, "INVALID_RESET_CARD_POLICY", apperror.Reason(err))
+	require.Len(t, store.created, 1)
 }
 
 // ValidatePlanGroupIDs records the requested identifiers and returns the configured result.

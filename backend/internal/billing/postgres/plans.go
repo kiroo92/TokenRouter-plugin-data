@@ -17,8 +17,9 @@ import (
 // Plan group selections are stored in the plan's JSON fields and in a
 // relational group mapping used by billing queries. Creation saves both within
 // an owned Ent transaction. Updates start an owned transaction when groups,
-// group rates or localization are supplied; ordinary scalar edits use the
-// configured client directly.
+// group rates, localization, reset-card terms or weekly/monthly quotas change;
+// unrelated scalar edits use the configured client directly. Card-policy edits
+// lock the plan before combining quota patches and deriving the cap.
 //
 // Group edits combine requested fields with an existing row before rebuilding
 // mappings. That initial group read has no row lock, while localization takes
@@ -30,9 +31,9 @@ import (
 // PlanStore persists plan records and their mirrored group mappings through
 // Ent.
 type PlanStore struct {
-	// entClient supplies plan reads and starts owned create/group/localization
-	// transactions. GetPlan joins a context transaction; other methods use this
-	// client directly rather than a transaction carried in context.
+	// entClient supplies plan reads and starts owned plan-write transactions.
+	// GetPlan joins a context transaction; other methods use this client directly
+	// rather than a transaction carried in context.
 	entClient *dbent.Client // configured plan persistence client
 }
 
@@ -157,15 +158,15 @@ func (s *PlanStore) CreatePlan(ctx context.Context, req billing.CreatePlanReques
 }
 
 // UpdatePlan applies supplied plan fields and returns the converted saved row.
-// Group/rate or localization input starts an owned transaction; scalar-only
-// updates use the configured client directly. GroupIDs uses the legacy GroupID
-// only when its own pointer is supplied, and absent group/rate input retains
-// the corresponding existing data for reconciliation.
+// Group/rate, localization or card-policy input starts an owned transaction;
+// unrelated scalar updates use the configured client directly. GroupIDs uses
+// the legacy GroupID only when its own pointer is supplied, and absent
+// group/rate input retains the corresponding existing data for reconciliation.
 //
 // Group reconciliation first reads the row without FOR UPDATE and normalizes
 // rates against the selected groups. Localization takes a separate later row
-// lock and prepares content from that locked view. The group read can
-// therefore precede waiting on another writer; this method provides
+// lock, shared with card policy, and prepares content from that view. The group
+// read can therefore precede waiting on another writer; this method provides
 // transaction grouping rather than a universal serialization guarantee for
 // partial group requests.
 //
@@ -174,6 +175,8 @@ func (s *PlanStore) CreatePlan(ctx context.Context, req billing.CreatePlanReques
 // relational mappings before commit. Any mapping/preparation/write failure
 // triggers owned rollback cleanup, while successful scalar-only writes need no
 // mapping rebuild.
+// Card-policy patches use a locked current row, require positive week/month
+// quotas when enabled, and derive the cap from the resulting weekly quota.
 func (s *PlanStore) UpdatePlan(ctx context.Context, id int64, req billing.UpdatePlanRequest) (*billing.SubscriptionPlan, error) {
 	var groupIDs []int64
 	var groupRates map[int64]float64
@@ -184,10 +187,11 @@ func (s *PlanStore) UpdatePlan(ctx context.Context, id int64, req billing.Update
 		}
 		groupIDs = billing.NormalizePlanGroupIDs(groupID, *req.GroupIDs)
 	}
-	// Group mirrors and versioned localization need multiple coordinated
-	// operations. Begin an owned transaction for those requests while scalar-only
-	// edits keep their single-row path.
-	useTx := req.GroupIDs != nil || req.GroupRateMultipliers != nil || req.Localization != nil
+	policyChanged := req.ResetCardCount != nil || req.ResetCardLimitUSD != nil ||
+		req.WeeklyLimitUSD.Present || req.MonthlyLimitUSD.Present
+	// Group mirrors, versioned copy and partial benefit policies need a stable
+	// transaction across their reads and writes; unrelated scalar edits stay direct.
+	useTx := req.GroupIDs != nil || req.GroupRateMultipliers != nil || req.Localization != nil || policyChanged
 	client := s.entClient
 	var tx *dbent.Tx
 	if useTx {
@@ -228,14 +232,34 @@ func (s *PlanStore) UpdatePlan(ctx context.Context, id int64, req billing.Update
 	}
 
 	update := client.SubscriptionPlan.UpdateOneID(id)
-	if req.Localization != nil {
-		// Prepare localization from a locked current content row, holding that lock
-		// through the saved replacement and owned commit so this content observation
-		// stays protected.
-		current, err := client.SubscriptionPlan.Query().Where(subscriptionplan.IDEQ(id)).ForUpdate().Only(ctx)
+	var current *dbent.SubscriptionPlan
+	if req.Localization != nil || policyChanged {
+		// Lock the shared plan row before interpreting omitted policy or content
+		// fields, so concurrent quota edits cannot publish a stale derived cap.
+		var err error
+		current, err = client.SubscriptionPlan.Query().Where(subscriptionplan.IDEQ(id)).ForUpdate().Only(ctx)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if policyChanged {
+		count, weekly, monthly := current.ResetCardCount, current.WeeklyLimitUsd, current.MonthlyLimitUsd
+		if req.ResetCardCount != nil {
+			count = *req.ResetCardCount
+		}
+		if req.WeeklyLimitUSD.Present {
+			weekly = req.WeeklyLimitUSD.Value
+		}
+		if req.MonthlyLimitUSD.Present {
+			monthly = req.MonthlyLimitUSD.Value
+		}
+		cap, err := billing.ResetCardPlanLimit(count, weekly, monthly)
+		if err != nil {
+			return nil, err
+		}
+		update.SetResetCardLimitUsd(cap)
+	}
+	if req.Localization != nil {
 		content := billing.PlanContent(PlanFromEntity(current))
 		next, err := locale.Prepare(content, *req.Localization, billing.ValidatePlanCopy)
 		if err != nil {
@@ -276,9 +300,6 @@ func (s *PlanStore) UpdatePlan(ctx context.Context, id int64, req billing.Update
 	}
 	if req.ResetCardCount != nil {
 		update.SetResetCardCount(*req.ResetCardCount)
-	}
-	if req.ResetCardLimitUSD != nil {
-		update.SetResetCardLimitUsd(*req.ResetCardLimitUSD)
 	}
 	if req.ValidityDays != nil {
 		update.SetValidityDays(*req.ValidityDays)

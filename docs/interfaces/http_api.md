@@ -110,7 +110,7 @@ Markdown 正文需要 JWT，并且菜单可见；管理员页面只对管理员�
 
 ### 购买附送重置卡
 
-管理员套餐创建和更新接受 `reset_card_count`、`reset_card_limit_usd`，数量 0 关闭附送，开启须为 1 至 100 张、有限正数上限和有限正数周额度。公开商品、管理员商品及支付订单快照返回这些购买条款；旧订单缺省数量为零。用户订阅响应可带 `reset_credit_usd`，表示该订阅本周剩余的独立福利余额。
+管理员套餐创建和更新通过 `reset_card_count` 配置附送张数，数量 0 关闭并将上限归零，开启须为 1 至 100 张且同时配置有限正数周限额和月限额。`reset_card_limit_usd` 为后台按周限额计算的只读条款；兼容接收旧客户端提交该字段，但忽略手填值。仅修改周限额也会同步已开启套餐的补回上限。移除必需限额而未关闭附送返回 `400 INVALID_RESET_CARD_POLICY`，不会保存部分修改。公开商品、管理员商品及支付订单快照返回这些购买条款；旧订单缺省数量为零，已有快照保留原条款。用户订阅响应可带 `reset_credit_usd`，表示该订阅本周剩余的独立福利余额。
 
 `GET /api/v1/subscriptions/reset-cards` 要求用户 JWT，返回本人的卡数组，包含 `id`、`plan_id`、`source_subscription_id`、`plan_name`、`limit_usd`、`expires_at`、`status` 及使用后的 `used_at`、`target_subscription_id`、`credited_usd`、`remaining_usd`、`benefit_expires_at`。状态为 `available`、`used`、`expired` 或 `unavailable`；历史补回金额保留，当前已过期或来源不可用时剩余福利为零。
 

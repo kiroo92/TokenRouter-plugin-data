@@ -110,7 +110,7 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		// Paid purchases snapshot both reset-card terms; zero count disables
 		// issuance while existing cards retain their captured count and cap.
 		field.Int("reset_card_count").Default(0),
-		// USD maximum restored by one issued card.
+		// USD cap derived from weekly quota for future paid purchases.
 		field.Float("reset_card_limit_usd").Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}),
 		// Product feature text.

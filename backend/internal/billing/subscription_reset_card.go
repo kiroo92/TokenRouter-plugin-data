@@ -12,6 +12,8 @@ import (
 // benefit balances. A card restores already settled spending up to its captured
 // cap on the originating paid subscription. It leaves original usage,
 // daily and monthly allowances, and every refresh timestamp unchanged.
+// New sale terms derive the cap from weekly quota and require monthly quota;
+// captured purchase terms remain valid independently of later plan edits.
 //
 // Used cards become separate funding sources until the target's original week
 // ends or that subscription expires. Their identities follow task holds into
@@ -63,9 +65,27 @@ type SubscriptionResetCardStore interface {
 	LoadResetCredits(context.Context, []UserSubscription) error
 }
 
-// ValidateResetCardPolicy checks the configured included-card quantity and cap.
-// Disabled issuance accepts a nonnegative cap; enabled issuance also requires
-// a finite positive weekly quota and a finite positive per-card credit cap.
+// ResetCardPlanLimit derives the per-card cap from a plan's weekly quota.
+// Enabled benefits require both finite positive weekly and monthly limits;
+// zero cards disable the benefit and return a zero cap regardless of quotas.
+// Callers ignore independently submitted caps when preparing new sale terms.
+func ResetCardPlanLimit(count int, weekly, monthly *float64) (float64, error) {
+	if count == 0 {
+		return 0, nil
+	}
+	if count < 1 || count > 100 || !FinitePositiveSubscriptionLimit(weekly) || !FinitePositiveSubscriptionLimit(monthly) {
+		return 0, apperror.BadRequest("INVALID_RESET_CARD_POLICY", "reset cards require 1 to 100 cards and finite positive weekly and monthly quotas")
+	}
+	if err := ValidateResetCardPolicy(count, *weekly, weekly); err != nil {
+		return 0, err
+	}
+	return *weekly, nil
+}
+
+// ValidateResetCardPolicy checks captured purchase terms before card issuance.
+// Existing orders retain their independently captured cap and weekly-only
+// eligibility. New sale configuration uses ResetCardPlanLimit, so later policy
+// changes cannot invalidate benefits already promised by a paid order.
 func ValidateResetCardPolicy(count int, cap float64, weekly *float64) error {
 	// One quota unit is 1e-8 USD. Smaller enabled caps round to zero in
 	// persistence and cannot issue a usable purchase benefit.

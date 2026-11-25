@@ -187,7 +187,7 @@ export interface SubscriptionPlan {
   peak_end?: string // Peak end in HH:mm.
   peak_rate_multiplier?: number // Peak rate multiplier.
   reset_card_count?: number // Included cards per paid purchase; zero disables issuance.
-  reset_card_limit_usd?: number // USD maximum restored by one card.
+  reset_card_limit_usd?: number // USD derived from weekly quota for enabled purchase cards.
   daily_limit_usd?: number | null // Daily limit USD.
   weekly_limit_usd?: number | null // Weekly limit USD.
   monthly_limit_usd?: number | null // Monthly limit USD.

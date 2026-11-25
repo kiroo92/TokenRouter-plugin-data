@@ -32,12 +32,14 @@ func TestResetCardRestoresWeekWithoutConsumingFutureQuota(t *testing.T) {
 	user, err := client.User.Create().SetEmail("reset-card@example.com").SetPasswordHash("hash").SetBalance(100).Save(ctx)
 	require.NoError(t, err)
 	plan, err := client.SubscriptionPlan.Create().SetName("Light").SetPrice(10).SetValidityDays(30).
-		SetDailyLimitUsd(20).SetWeeklyLimitUsd(100).SetMonthlyLimitUsd(300).SetResetCardCount(2).SetResetCardLimitUsd(50).Save(ctx)
+		SetDailyLimitUsd(20).SetWeeklyLimitUsd(100).SetMonthlyLimitUsd(300).SetResetCardCount(2).SetResetCardLimitUsd(100).Save(ctx)
 	require.NoError(t, err)
 	store := postgres.NewUserSubscriptionRepository(client)
 	clock := billing.DateRuntime{Now: func() time.Time { return now.Add(-72 * time.Hour) }}
 	service := billing.NewSubscriptionService(nil, store, postgres.NewSubscriptionMutations(client), clock)
 	orderID := int64(7001)
+	// A historical order captured a smaller manual cap before automatic weekly
+	// caps. Fulfillment must retain that promise after the live plan is normalized.
 	input := &billing.AssignSubscriptionInput{UserID: user.ID, PlanID: plan.ID, SourceOrderID: &orderID, ResetCardCount: 2, ResetCardLimitUSD: 50}
 	source, err := service.AssignSubscription(ctx, input)
 	require.NoError(t, err)
@@ -120,6 +122,68 @@ func TestResetCardRestoresWeekWithoutConsumingFutureQuota(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, billing.AvailableResetCredit(view.ResetCredits, time.Now()))
 	require.Error(t, billing.CheckSubscriptionUsageLimits(view, 0))
+}
+
+// TestResetCardPlanPolicySynchronizesWeeklyEdits changes only quota fields on
+// an enabled plan. Storage must derive the new cap, reject removing monthly
+// eligibility, and serialize simultaneous weekly and monthly replacements.
+func TestResetCardPlanPolicySynchronizesWeeklyEdits(t *testing.T) {
+	ctx := t.Context()
+	client := committedEntitlementClient(t)
+	plans := billing.NewPlans(postgres.NewPlanStore(client), nil, nil)
+	weekly, monthly := 585.0, 2340.0
+	plan, err := plans.CreatePlan(ctx, billing.CreatePlanRequest{
+		Name: "automatic card cap", Price: 10, ValidityDays: 30, ValidityUnit: "day",
+		WeeklyLimitUSD: &weekly, MonthlyLimitUSD: &monthly, ResetCardCount: 1,
+	})
+	require.NoError(t, err)
+	require.Equal(t, weekly, plan.ResetCardLimitUSD)
+	weekly = 1162.5
+	staleCap := 0.0
+	plan, err = plans.UpdatePlan(ctx, plan.ID, billing.UpdatePlanRequest{
+		WeeklyLimitUSD: billing.NullableFloat64Patch{Present: true, Value: &weekly}, ResetCardLimitUSD: &staleCap,
+	})
+	require.NoError(t, err)
+	require.Equal(t, weekly, plan.ResetCardLimitUSD)
+	_, err = plans.UpdatePlan(ctx, plan.ID, billing.UpdatePlanRequest{MonthlyLimitUSD: billing.NullableFloat64Patch{Present: true}})
+	require.Error(t, err)
+	stored, err := plans.GetPlan(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, monthly, *stored.MonthlyLimitUSD)
+
+	weekly, monthly = 700, 3000
+	patches := []billing.UpdatePlanRequest{
+		{WeeklyLimitUSD: billing.NullableFloat64Patch{Present: true, Value: &weekly}},
+		{MonthlyLimitUSD: billing.NullableFloat64Patch{Present: true, Value: &monthly}},
+	}
+	var workers sync.WaitGroup
+	errors := make([]error, len(patches))
+	// Distinct partial edits share one row lock through commit, so the later
+	// request must derive its cap from the earlier committed weekly replacement.
+	for i := range patches {
+		workers.Go(func() {
+			_, errors[i] = plans.UpdatePlan(ctx, plan.ID, patches[i])
+		})
+	}
+	workers.Wait()
+	for _, err := range errors {
+		require.NoError(t, err)
+	}
+	stored, err = plans.GetPlan(ctx, plan.ID)
+	require.NoError(t, err)
+	require.Equal(t, weekly, stored.ResetCardLimitUSD)
+	require.Equal(t, weekly, *stored.WeeklyLimitUSD)
+	require.Equal(t, monthly, *stored.MonthlyLimitUSD)
+	_, err = integrationDB.ExecContext(ctx, `UPDATE subscription_plans SET reset_card_limit_usd=0 WHERE id=$1`, plan.ID)
+	require.Error(t, err)
+	count := 0
+	stored, err = plans.UpdatePlan(ctx, plan.ID, billing.UpdatePlanRequest{
+		ResetCardCount: &count, MonthlyLimitUSD: billing.NullableFloat64Patch{Present: true},
+	})
+	require.NoError(t, err)
+	require.Zero(t, stored.ResetCardCount)
+	require.Zero(t, stored.ResetCardLimitUSD)
+	require.Nil(t, stored.MonthlyLimitUSD)
 }
 
 // TestResetCardEligibilityKeepsUnusedCard rejects frozen, foreign, other owned

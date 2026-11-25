@@ -63,9 +63,9 @@ type CreatePlanRequest struct {
 	DailyLimitUSD   *float64 `json:"daily_limit_usd"`   // USD daily quota ceiling
 	WeeklyLimitUSD  *float64 `json:"weekly_limit_usd"`  // USD weekly quota ceiling
 	MonthlyLimitUSD *float64 `json:"monthly_limit_usd"` // USD monthly quota ceiling
-	// ResetCardCount and ResetCardLimitUSD define purchase benefits together.
-	// Zero count disables issuance; positive counts require a finite weekly quota
-	// and a positive cap retained in each new checkout snapshot.
+	// ResetCardCount enables purchase benefits only with positive week/month quotas.
+	// ResetCardLimitUSD accepts legacy input but creation replaces it with the
+	// weekly quota when enabled or zero when disabled before checkout snapshots it.
 	ResetCardCount    int     `json:"reset_card_count"`     // included cards per paid purchase
 	ResetCardLimitUSD float64 `json:"reset_card_limit_usd"` // USD per-card credit cap
 	Features          string  `json:"features"`             // source feature-list text
@@ -109,9 +109,9 @@ type UpdatePlanRequest struct {
 	DailyLimitUSD        NullableFloat64Patch `json:"daily_limit_usd"`        // USD daily quota ceiling
 	WeeklyLimitUSD       NullableFloat64Patch `json:"weekly_limit_usd"`       // USD weekly quota ceiling
 	MonthlyLimitUSD      NullableFloat64Patch `json:"monthly_limit_usd"`      // USD monthly quota ceiling
-	// ResetCardCount and ResetCardLimitUSD preserve omitted purchase terms.
-	// Supplied values are validated against the resulting weekly quota before
-	// persistence; edits affect future orders while existing cards retain their caps.
+	// ResetCardCount preserves omitted issuance settings. ResetCardLimitUSD accepts
+	// legacy input but storage derives the cap from locked weekly/monthly terms;
+	// edits affect future orders while existing orders and cards retain their caps.
 	ResetCardCount    *int     `json:"reset_card_count"`     // supplied included card count
 	ResetCardLimitUSD *float64 `json:"reset_card_limit_usd"` // supplied USD per-card cap
 	Features          *string  `json:"features"`             // source feature-list text

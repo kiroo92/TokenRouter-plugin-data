@@ -55,8 +55,9 @@ type SubscriptionPlan struct {
 	WeeklyLimitUSD  *float64 // USD issued weekly ceiling
 	MonthlyLimitUSD *float64 // USD issued monthly ceiling
 	// ResetCardCount and ResetCardLimitUSD define the paid purchase benefit.
-	// Zero count disables issuance; positive counts require a finite positive
-	// cap and a finite weekly quota. Checkout snapshots retain these sale terms.
+	// Zero count disables issuance and clears the cap. Positive counts require
+	// finite positive week/month quotas; the cap follows the weekly quota, and
+	// checkout snapshots retain these sale terms independently of later edits.
 	ResetCardCount    int     // cards included per paid subscription
 	ResetCardLimitUSD float64 // USD maximum credit per card
 	Features          string  // resolved feature-list text

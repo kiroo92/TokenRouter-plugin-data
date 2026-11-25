@@ -983,9 +983,9 @@ export default {
       dailyLimit: '日限额',
       includeResetCards: '购买附送周额度重置卡',
       resetCardCount: '每次购买附送张数',
-      resetCardLimit: '单张最多补回额度（USD）',
+      resetCardLimit: '单张补回上限（自动同步周限额，USD）',
       resetCardHelp:
-        '仅新支付订单自动发放，须配置有限周额度。卡与原订阅同时到期；已发放卡保留购买时的上限。轻享可设置 585，尊享可设置 1162.5。',
+        '同时配置有限正数周限额和月限额后才能开启。单张补回上限自动等于周限额，仅新支付订单自动发放。卡与绑定订阅同时到期，已发卡保留购买时的条款。',
       weeklyLimit: '周限额',
       monthlyLimit: '月限额',
       unlimited: '无限制',

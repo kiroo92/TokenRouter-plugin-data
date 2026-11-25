@@ -128,7 +128,9 @@
         <div class="flex items-center justify-between gap-3">
           <label class="input-label mb-0">{{ t('payment.admin.includeResetCards') }}</label>
           <Toggle
-            :model-value="planForm.reset_card_count > 0"
+            data-testid="plan-reset_cards_enabled"
+            :model-value="resetCardsEligible && planForm.reset_card_count > 0"
+            :disabled="!resetCardsEligible"
             @update:model-value="planForm.reset_card_count = $event ? 1 : 0"
           />
         </div>
@@ -148,12 +150,11 @@
           <div>
             <label class="input-label">{{ t('payment.admin.resetCardLimit') }}</label>
             <input
-              v-model.number="planForm.reset_card_limit_usd"
+              :value="resetCardLimitUSD"
               data-testid="plan-reset_card_limit_usd"
               type="number"
-              min="0.00000001"
-              step="0.01"
               class="input"
+              readonly
             />
           </div>
         </div>
@@ -283,11 +284,11 @@ import type { AdminGroup } from '@/api/groups.types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 
-// PlanEditDialog.vue edits subscription prices, localized product copy, quota windows, and
-// group-specific subscription rates and included purchase reset-card terms. Each opening reconstructs the draft from the selected
-// plan or new-plan defaults. Localization is copied through JSON so editing nested
-// translated content does not mutate the selected plan object. Group IDs accept the
-// current array representation and the legacy single-group field.
+// PlanEditDialog.vue edits subscription prices, localized product copy, quota windows,
+// group-specific rates and included purchase cards. Each opening reconstructs the
+// draft from the selected plan or new-plan defaults. Localization is copied through
+// JSON so editing nested translated content does not mutate the selected plan object.
+// Group IDs accept current arrays and the legacy single-group field.
 //
 // A stored plan can name a group that was deleted after the plan was saved, and the server
 // keeps that identifier. Loading the group choices drops such identifiers from the draft and
@@ -299,6 +300,8 @@ import Select from '@/components/common/Select.vue'
 // with positive finite values. A CNY preview applies the configured conversion rate and
 // fee rounding. Persistence completes before close and saved events notify the parent to
 // refresh the plan list.
+// Included cards require finite positive week/month quotas; their read-only cap follows
+// the weekly quota, and clearing either required limit disables the purchase benefit.
 
 // props supplies parent-owned records and presentation state consumed by this component
 // and its event handlers.
@@ -379,7 +382,6 @@ const planForm = reactive({
   validity_days: 30, // duration count in validity_unit
   validity_unit: 'day', // configured duration unit code
   reset_card_count: 0, // Included purchase benefit count; zero disables issuance.
-  reset_card_limit_usd: 0, // USD per-card restoration cap captured at checkout.
   // daily_limit_usd, weekly_limit_usd, and monthly_limit_usd share quota conversion rules:
   // hydration blanks nonpositive stored values, while submission retains an explicitly
   // entered numeric zero.
@@ -393,6 +395,33 @@ const planForm = reactive({
   group_rate_multipliers: {} as Record<number, number | null>, // selected group rate overrides
   sort_order: 0, // plan listing sort position
   for_sale: true, // plan purchase availability flag
+})
+
+// resetCardsEligible restricts purchase benefits to finite week/month quota plans.
+// The weekly range also ensures a nonzero eight-place cap fits persisted USD amounts.
+const resetCardsEligible = computed(() => {
+  const weekly = planForm.weekly_limit_usd
+  const monthly = planForm.monthly_limit_usd
+  return (
+    typeof weekly === 'number' &&
+    Number.isFinite(weekly) &&
+    weekly >= 0.00000001 &&
+    weekly < 1e12 &&
+    typeof monthly === 'number' &&
+    Number.isFinite(monthly) &&
+    monthly > 0
+  )
+})
+
+// resetCardLimitUSD reflects the weekly quota for eligible purchase benefits.
+const resetCardLimitUSD = computed(() =>
+  resetCardsEligible.value ? (planForm.weekly_limit_usd ?? 0) : 0,
+)
+
+// Removing either quota disables issuance before submission, preventing a hidden
+// enabled benefit from surviving a switch to unlimited weekly or monthly allowance.
+watch([() => planForm.weekly_limit_usd, () => planForm.monthly_limit_usd], () => {
+  if (!resetCardsEligible.value) planForm.reset_card_count = 0
 })
 
 // validityUnitOptions provides translated duration unit choices while preserving the fixed
@@ -469,7 +498,6 @@ watch(
         validity_days: props.plan.validity_days,
         validity_unit: props.plan.validity_unit || 'day',
         reset_card_count: props.plan.reset_card_count || 0,
-        reset_card_limit_usd: props.plan.reset_card_limit_usd || 0,
         daily_limit_usd: normalizeQuotaFormValue(props.plan.daily_limit_usd),
         weekly_limit_usd: normalizeQuotaFormValue(props.plan.weekly_limit_usd),
         monthly_limit_usd: normalizeQuotaFormValue(props.plan.monthly_limit_usd),
@@ -492,7 +520,6 @@ watch(
       validity_days: 30,
       validity_unit: 'day',
       reset_card_count: 0,
-      reset_card_limit_usd: 0,
       daily_limit_usd: null,
       weekly_limit_usd: null,
       monthly_limit_usd: null,
@@ -640,6 +667,7 @@ function normalizeQuotaLimit(value: number | null): number | null {
 // values, so stale unselected entries are excluded. Quota conversion retains numeric zero
 // on submission, while optional original price uses positive-or-null conversion.
 // Localization accompanies the source fields for the backend's content handling.
+// Card caps are derived from weekly quota; disabled benefits submit zero terms.
 function buildPlanPayload() {
   // Build overrides from selected groups so unselected draft entries cannot be submitted,
   // and retain only finite positive rates accepted by save validation.
@@ -658,8 +686,8 @@ function buildPlanPayload() {
     currency: planForm.currency.trim().toUpperCase(),
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
-    reset_card_count: Number(planForm.reset_card_count),
-    reset_card_limit_usd: Number(planForm.reset_card_limit_usd),
+    reset_card_count: resetCardsEligible.value ? Number(planForm.reset_card_count) : 0,
+    reset_card_limit_usd: planForm.reset_card_count > 0 ? resetCardLimitUSD.value : 0,
     daily_limit_usd: normalizeQuotaLimit(planForm.daily_limit_usd),
     weekly_limit_usd: normalizeQuotaLimit(planForm.weekly_limit_usd),
     monthly_limit_usd: normalizeQuotaLimit(planForm.monthly_limit_usd),
